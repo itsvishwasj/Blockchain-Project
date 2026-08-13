@@ -1,0 +1,25 @@
+{
+  "name": "tri-modular-evoting",
+  "version": "1.0.0",
+  "description": "Tri-Modular E-Voting: Poseidon ZKP + Candidate Content Attestation",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "node": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "circuit:compile": "bash circuits/compile.sh",
+    "circuit:setup": "bash circuits/setup.sh"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.5",
+    "circomlib": "^2.0.5",
+    "circom_tester": "^0.0.20",
+    "snarkjs": "^0.7.4"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.2",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.1"
+  }
+}
