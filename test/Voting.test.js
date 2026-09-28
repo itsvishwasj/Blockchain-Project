@@ -9,6 +9,7 @@ const { ethers } = require("hardhat");
 describe("Voting", function () {
   let voting, registry, mockVerifier, owner, other;
   const electionId = 1;
+  const merkleRoot = 123456789;
 
   before(async function () {
     [owner, other] = await ethers.getSigners();
@@ -37,7 +38,7 @@ describe("Voting", function () {
   });
 
   it("creates an election once the root is set", async function () {
-    await registry.setMerkleRoot(electionId, 123456789);
+    await registry.setMerkleRoot(electionId, merkleRoot);
     await voting.createElection(electionId, "Test Election", 0, 9999999999, 3);
     const e = await voting.elections(electionId);
     expect(e.title).to.equal("Test Election");
@@ -47,7 +48,9 @@ describe("Voting", function () {
     const pA = [1, 2];
     const pB = [[1, 2], [3, 4]];
     const pC = [5, 6];
-    const pubSignals = [123456789, electionId, 999 /* nullifier */, 111 /* commitment */];
+    // Order must match Voting.sol's castVote expectation:
+    // [nullifierHash, voteCommitment, merkleRoot, electionId]
+    const pubSignals = [999 /* nullifier */, 111 /* commitment */, merkleRoot, electionId];
 
     await voting.castVote(electionId, pA, pB, pC, pubSignals);
 

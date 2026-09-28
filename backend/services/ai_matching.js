@@ -33,12 +33,22 @@ function cosineSimilarity(vecA, vecB) {
  * @returns {Array<{candidateId: number, name: string, score: number}>} ranked descending
  */
 function matchCandidates(voterAnswers, candidates) {
-  const results = candidates.map((c) => ({
-    candidateId: c.candidateId,
-    name: c.name,
-    score: Number(cosineSimilarity(voterAnswers, c.stanceVector).toFixed(4))
-  }));
+  console.log("========== AI CANDIDATE MATCHING ==========");
+  console.log("Voter stance vector:", voterAnswers);
+
+  const results = candidates.map((c) => {
+    const score = Number(cosineSimilarity(voterAnswers, c.stanceVector).toFixed(4));
+    console.log(`Candidate: ${c.name} | Stance vector:`, c.stanceVector, `| Cosine similarity score: ${score}`);
+    return {
+      candidateId: c.candidateId,
+      name: c.name,
+      score
+    };
+  });
+
   results.sort((a, b) => b.score - a.score);
+  console.log("Ranked results:", results);
+  console.log("=============================================");
   return results;
 }
 
