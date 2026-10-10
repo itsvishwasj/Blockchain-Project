@@ -7,6 +7,9 @@
     "dev": "nodemon server.js",
     "reset-db": "node scripts/reset_db.js"
   },
+  "engines": {
+    "node": "20.x"
+  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "circomlibjs": "^0.1.7",
