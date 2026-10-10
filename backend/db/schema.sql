@@ -93,12 +93,16 @@ CREATE TABLE IF NOT EXISTS attested_content (
 );
 
 CREATE TABLE IF NOT EXISTS vote_receipts (
-    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
-    election_id     BIGINT NOT NULL,
-    nullifier_hash  CHAR(66) NOT NULL,
-    tx_hash         CHAR(66) NOT NULL,
-    block_number    BIGINT NOT NULL,
-    cast_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    id                      BIGINT PRIMARY KEY AUTO_INCREMENT,
+    election_id             BIGINT NOT NULL,
+    nullifier_hash          CHAR(66) NOT NULL,
+    tx_hash                 CHAR(66) NOT NULL,
+    block_number            BIGINT NOT NULL,
+    merkle_proof_fetch_ms   INT DEFAULT 0,
+    zk_proof_gen_ms         INT DEFAULT 0,
+    blockchain_confirm_ms   INT DEFAULT 0,
+    total_latency_ms        INT DEFAULT 0,
+    cast_at                 TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (election_id) REFERENCES elections(id),
     UNIQUE KEY uniq_nullifier_per_election (election_id, nullifier_hash)
 );

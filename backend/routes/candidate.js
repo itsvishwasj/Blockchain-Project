@@ -7,7 +7,7 @@ const { requireAuth } = require("../middleware/auth");
 const chain = require("../services/blockchain");
 
 const router = express.Router();
-router.use(requireAuth(["CANDIDATE"]));
+router.use(requireAuth(["CANDIDATE", "ADMIN"]));
 const upload = multer({
   storage: multer.diskStorage({
     destination: "uploads/",
@@ -24,12 +24,30 @@ const upload = multer({
 router.post("/profile", async (req, res) => {
   try {
     const { electionId, displayName, bio, publicKey } = req.body;
+    if (!electionId) {
+      return res.status(400).json({ error: "electionId is required" });
+    }
+
+    const [existing] = await pool.query(
+      "SELECT id FROM candidates WHERE user_id = ? AND election_id = ?",
+      [req.user.userId, electionId]
+    );
+
+    if (existing.length) {
+      await pool.query(
+        `UPDATE candidates
+         SET display_name = ?, bio = ?, public_key = ?, status = 'PENDING', rejection_reason = NULL
+         WHERE id = ?`,
+        [displayName, bio || "", publicKey || "", existing[0].id]
+      );
+      return res.status(200).json({ candidateId: existing[0].id, updated: true });
+    }
+
     const [result] = await pool.query(
       `INSERT INTO candidates (user_id, election_id, display_name, bio, public_key, status)
        VALUES (?, ?, ?, ?, ?, 'PENDING')`,
       [req.user.userId, electionId, displayName, bio || "", publicKey || ""]
     );
-    localStorage_candidateId = result.insertId; // for reference
     res.status(201).json({ candidateId: result.insertId });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -37,14 +55,29 @@ router.post("/profile", async (req, res) => {
 router.get("/profile", async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT c.*, e.title as election_title
+      `SELECT c.*, e.title as election_title, e.status as election_status, e.description as election_description
        FROM candidates c
        JOIN elections e ON e.id = c.election_id
-       WHERE c.user_id = ?`,
+       WHERE c.user_id = ?
+       ORDER BY c.created_at DESC`,
       [req.user.userId]
     );
-    if (!rows.length) return res.status(404).json({ error: "No profile found" });
-    res.json({ candidate: rows[0] });
+    if (!rows.length) return res.json({ candidate: null, candidates: [] });
+    res.json({ candidate: rows[0], candidates: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get("/profiles", async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT c.*, e.title as election_title, e.status as election_status, e.description as election_description
+       FROM candidates c
+       JOIN elections e ON e.id = c.election_id
+       WHERE c.user_id = ?
+       ORDER BY c.created_at DESC`,
+      [req.user.userId]
+    );
+    res.json({ candidates: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -154,8 +187,7 @@ router.post("/manifesto/:candidateId", upload.single("file"), async (req, res) =
     let txHash = "PENDING";
     try {
       const sig = signature || "0x";
-      const tx = await chain.attestation.attest(contentHash, sig);
-      const receipt = await tx.wait();
+      const receipt = await chain.attestContent(contentHash, sig);
       txHash = receipt.hash;
       console.log(`✅ Manifesto anchored on blockchain — tx: ${txHash}`);
     } catch (chainErr) {

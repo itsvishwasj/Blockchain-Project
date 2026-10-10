@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import api from "../../lib/api";
 import { randomFieldElement } from "../../lib/zkProof";
+import { KeyRound, ShieldCheck, CheckCircle2, ArrowRight, Cpu, Lock, AlertCircle } from "lucide-react";
 
 async function computeIdentityCommitment(voterSecret) {
   const { buildPoseidon } = await import("circomlibjs");
@@ -12,42 +13,54 @@ async function computeIdentityCommitment(voterSecret) {
 
 export default function RegisterForElection() {
   const router = useRouter();
-  const [electionId, setElectionId] = useState("1");
+  const [electionId, setElectionId] = useState("19");
   const [status, setStatus] = useState("");
   const [approved, setApproved] = useState(false);
+  const [commitmentPreview, setCommitmentPreview] = useState("");
 
   useEffect(() => {
     if (router.query.election) {
       setElectionId(String(router.query.election));
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      const savedId = localStorage.getItem("activeElectionId");
+      if (savedId) {
+        setElectionId(savedId);
+      }
     }
   }, [router.query.election]);
 
   async function handleRegister() {
-    setStatus("Generating your private voting secret in this browser...");
+    setStatus("Generating your private voting secret locally in browser memory...");
     let voterSecret = localStorage.getItem("voterSecret");
     if (!voterSecret) {
       voterSecret = randomFieldElement();
       localStorage.setItem("voterSecret", voterSecret);
     }
-    setStatus("Computing your identity commitment...");
+
+    setStatus("Computing Poseidon identity commitment fingerprint...");
     let identityCommitment;
     try {
       identityCommitment = await computeIdentityCommitment(voterSecret);
+      setCommitmentPreview(identityCommitment);
     } catch (err) {
-      setStatus("Error: " + err.message);
+      setStatus("Error computing Poseidon hash: " + err.message);
       return;
     }
-    setStatus("Checking eligibility...");
+
+    setStatus("Verifying whitelist eligibility against database...");
     try {
       const { data } = await api.post(`/voter/elections/${electionId}/register`, { identityCommitment });
       if (data.status === "APPROVED") {
         setApproved(true);
-        setStatus("Registered and approved! You can now cast your vote.");
+        setStatus("✅ Registered & approved! You can now cast your anonymous vote.");
       } else {
-        setStatus("Registration submitted — waiting for admin approval.");
+        setStatus("Registration submitted — waiting for admin to lock voter root.");
       }
     } catch (err) {
-      setStatus("Error: " + (err.response?.data?.error || "Registration failed"));
+      setStatus("❌ " + (err.response?.data?.error || "Registration failed"));
     }
   }
 
@@ -55,64 +68,108 @@ export default function RegisterForElection() {
     try {
       const { data } = await api.get(`/voter/elections/${electionId}/registration-status`);
       if (data.status === "APPROVED") setApproved(true);
-      setStatus("Your status: " + data.status);
+      setStatus("Your registration status: " + data.status);
     } catch (err) {
       setStatus(err.response?.data?.error || "Could not check status");
     }
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-12">
-      <div className="max-w-lg mx-auto">
-        <div className="bg-slate-900 border border-cyan-500/20 rounded-2xl shadow-[0_0_40px_rgba(34,211,238,0.15)] p-8">
-          <h1 className="text-2xl font-bold text-white mb-4">Register to Vote</h1>
-          <div className="p-4 bg-cyan-400/10 border border-cyan-400/20 rounded-lg mb-6">
-            <p className="text-sm text-cyan-200">
-              <strong className="text-cyan-100">How this works:</strong> Your browser
-              generates a private secret that stays on this device. Only a
-              mathematical fingerprint gets sent to the server — never the secret
-              itself. This keeps your vote anonymous.
-            </p>
+    <div className="min-h-screen bg-[#f3f6fc] px-4 sm:px-8 py-12 flex items-center justify-center font-sans">
+      <div className="max-w-xl w-full bg-white rounded-3xl p-8 space-y-6 shadow-xs border border-slate-100">
+        
+        {/* Header */}
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 border border-blue-100 mb-1">
+            <KeyRound className="w-8 h-8 text-blue-600" />
           </div>
-          <label className="text-sm text-slate-300 block mb-4">
-            Election ID
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+            Voter Identity Commitment Engine
+          </h1>
+          <p className="text-xs text-slate-500">
+            Generate your Poseidon zero-knowledge identity fingerprint without exposing your private secret.
+          </p>
+        </div>
+
+        {/* Cryptographic Explainer Banner */}
+        <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-100 text-xs text-slate-700 leading-relaxed space-y-1">
+          <p className="font-bold flex items-center gap-1.5 text-blue-900">
+            <Cpu className="w-4 h-4 text-blue-600" /> How Poseidon Identity Commitments Work
+          </p>
+          <p className="text-[11px] text-slate-600">
+            Your browser creates a 256-bit random field secret locally. A <strong className="text-slate-900">Poseidon hash</strong> is derived in memory. Only the fingerprint is published to the Merkle tree leaf — your private secret never leaves your device.
+          </p>
+        </div>
+
+        {/* Form Inputs */}
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Election Window ID</label>
             <input
               value={electionId}
               onChange={(e) => setElectionId(e.target.value)}
-              className="w-full mt-1 bg-slate-800 border border-slate-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              placeholder="e.g. 19"
+              className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-mono text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-          </label>
-          <div className="flex gap-3">
+          </div>
+
+          {commitmentPreview && (
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 font-mono text-xs space-y-1">
+              <span className="text-slate-500 text-[10px] block font-sans">Local Poseidon Commitment Leaf:</span>
+              <p className="text-blue-700 font-bold break-all">{commitmentPreview}</p>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-2 flex-wrap sm:flex-nowrap">
             <button
               onClick={handleRegister}
-              className="flex-1 bg-cyan-400 text-slate-950 font-semibold rounded-lg py-2.5 hover:bg-cyan-300 transition-colors"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl py-3 transition-all shadow-xs flex items-center justify-center gap-2"
             >
-              Register for this Election
+              <KeyRound className="w-4 h-4" /> Generate Secret &amp; Register
             </button>
             <button
               onClick={checkStatus}
-              className="flex-1 bg-slate-800 border border-slate-700 text-white font-medium rounded-lg py-2.5 hover:bg-slate-700 transition-colors"
+              className="flex-1 bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200 font-extrabold text-xs rounded-xl py-3 transition-all"
             >
-              Check My Status
+              Check My Eligibility
             </button>
           </div>
-          {status && (
-            <p className={`mt-4 p-3 rounded-lg text-sm ${approved ? "bg-emerald-400/10 border border-emerald-400/20 text-emerald-200" : "bg-amber-400/10 border border-amber-400/20 text-amber-200"}`}>
-              {status}
-            </p>
-          )}
-          {approved && (
-            <div className="mt-4 text-sm text-slate-300">
-              <p className="mb-2">Ready to vote? Go to:</p>
-              <a href={"/voter/survey?election=" + electionId} className="block text-cyan-400 hover:underline mb-1">
-                Take the candidate matching survey first (optional)
+        </div>
+
+        {/* Status Notification Box */}
+        {status && (
+          <div className={`p-4 rounded-2xl text-xs font-mono whitespace-pre-line ${
+            approved 
+              ? "bg-emerald-50 border border-emerald-200 text-emerald-800" 
+              : "bg-amber-50 border border-amber-200 text-amber-800"
+          }`}>
+            {status}
+          </div>
+        )}
+
+        {/* Approved Next Steps */}
+        {approved && (
+          <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 pt-4">
+            <span className="text-xs font-bold text-slate-900 uppercase tracking-wider block">Next Steps:</span>
+            <div className="flex flex-col gap-2">
+              <a 
+                href={`/voter/survey?election=${electionId}`}
+                className="flex items-center justify-between p-3.5 rounded-xl bg-white border border-slate-200 hover:border-blue-300 text-xs font-bold text-blue-700 transition-all shadow-xs"
+              >
+                <span>1. Take AI Candidate Stance Vector Survey (Optional)</span>
+                <ArrowRight className="w-4 h-4" />
               </a>
-              <a href={"/voter/vote?election=" + electionId} className="block text-cyan-400 hover:underline">
-                Cast your anonymous vote
+              <a 
+                href={`/voter/vote?election=${electionId}`}
+                className="flex items-center justify-between p-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-xs transition-all"
+              >
+                <span>2. Cast Anonymous Vote via In-Browser ZK Prover</span>
+                <ArrowRight className="w-4 h-4" />
               </a>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

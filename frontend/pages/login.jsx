@@ -25,12 +25,34 @@ export default function Login() {
         return;
       }
 
+      const userEmail = data.email || email;
+      const userName = data.user?.full_name || (userEmail ? userEmail.split('@')[0] : 'User');
+
+      sessionStorage.setItem("token", data.token);
+      sessionStorage.setItem("role", data.role);
+      sessionStorage.setItem("userRole", data.role);
+      sessionStorage.setItem("userEmail", userEmail);
+      sessionStorage.setItem("tri_vote_user_email", userEmail);
+      sessionStorage.setItem("tri_vote_user_name", userName);
+
       localStorage.setItem("token", data.token);
       localStorage.setItem("role", data.role);
+      localStorage.setItem("userRole", data.role);
+      localStorage.setItem("userEmail", userEmail);
+      localStorage.setItem("tri_vote_user_email", userEmail);
+      localStorage.setItem("tri_vote_user_name", userName);
 
-      if (data.role === "ADMIN") router.push("/admin/dashboard");
-      else if (data.role === "CANDIDATE") router.push("/candidate/dashboard");
-      else router.push("/voter/register");
+      if (data.role === "ADMIN") {
+        sessionStorage.setItem("admin_token", data.token);
+        localStorage.setItem("admin_token", data.token);
+        router.push("/admin/dashboard");
+      } else if (data.role === "CANDIDATE") {
+        sessionStorage.setItem("candidate_token", data.token);
+        localStorage.setItem("candidate_token", data.token);
+        router.push("/candidate/dashboard");
+      } else {
+        router.push("/voter/register");
+      }
     } catch (err) {
       const errData = err.response?.data;
       if (errData?.needsVerification) {

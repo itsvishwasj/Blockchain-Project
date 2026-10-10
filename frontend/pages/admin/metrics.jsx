@@ -3,7 +3,7 @@ import api from "../../lib/api";
 
 export default function MetricsPage() {
   const [metrics, setMetrics] = useState(null);
-  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   useEffect(() => {
     loadMetrics();
@@ -11,7 +11,7 @@ export default function MetricsPage() {
 
   useEffect(() => {
     if (!autoRefresh) return;
-    const interval = setInterval(loadMetrics, 3000);
+    const interval = setInterval(loadMetrics, 2000);
     return () => clearInterval(interval);
   }, [autoRefresh]);
 

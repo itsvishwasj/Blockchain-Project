@@ -23,8 +23,21 @@ export default function VerifyLoginOTP() {
     setStatus("Verifying...");
     try {
       const { data } = await api.post("/auth/verify-login-otp", { email, otp });
+      const userEmail = data.email || email;
+      const userName = data.user?.full_name || (userEmail ? userEmail.split('@')[0] : 'User');
+      sessionStorage.setItem("token", data.token);
+      sessionStorage.setItem("role", data.role);
+      sessionStorage.setItem("userRole", data.role);
+      sessionStorage.setItem("userEmail", userEmail);
+      sessionStorage.setItem("tri_vote_user_email", userEmail);
+      sessionStorage.setItem("tri_vote_user_name", userName);
+
       localStorage.setItem("token", data.token);
       localStorage.setItem("role", data.role);
+      localStorage.setItem("userRole", data.role);
+      localStorage.setItem("userEmail", userEmail);
+      localStorage.setItem("tri_vote_user_email", userEmail);
+      localStorage.setItem("tri_vote_user_name", userName);
       setSuccess(true);
       setStatus("Login verified! Redirecting...");
       setTimeout(() => router.push("/voter/register"), 1200);

@@ -32,22 +32,49 @@ function withTimeout(promise, label) {
   ]);
 }
 
+async function getTxOverrides() {
+  const nonce = await provider.getTransactionCount(adminWallet.address, "latest");
+  return { nonce };
+}
+
+async function executeTx(contractFunc, label) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const overrides = await getTxOverrides();
+      const tx = await withTimeout(contractFunc(overrides), label);
+      return await withTimeout(tx.wait(), `${label} confirmation`);
+    } catch (err) {
+      if ((err.message && (err.message.includes("nonce") || err.message.includes("Nonce"))) && attempt < 3) {
+        console.log(`⚠️ Nonce retry on ${label} (attempt ${attempt}/3)...`);
+        await new Promise(r => setTimeout(r, 300));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 async function createElectionOnChain(electionId, title, startTime, endTime, candidateCount) {
-  const tx = await withTimeout(
-    voting.createElection(electionId, title, startTime, endTime, candidateCount),
-    "createElection"
-  );
-  return withTimeout(tx.wait(), "createElection confirmation");
+  return executeTx((overrides) => voting.createElection(electionId, title, startTime, endTime, candidateCount, overrides), "createElection");
 }
 
 async function setVoterRoot(electionId, root) {
-  const tx = await withTimeout(registry.setMerkleRoot(electionId, root), "setVoterRoot");
-  return withTimeout(tx.wait(), "setVoterRoot confirmation");
+  return executeTx((overrides) => registry.setMerkleRoot(electionId, root, overrides), "setVoterRoot");
 }
 
 async function lockVoterRoot(electionId) {
-  const tx = await withTimeout(registry.lockRoot(electionId), "lockVoterRoot");
-  return withTimeout(tx.wait(), "lockVoterRoot confirmation");
+  return executeTx((overrides) => registry.lockRoot(electionId, overrides), "lockVoterRoot");
+}
+
+async function attestContent(contentHash, signature) {
+  return executeTx((overrides) => attestation.attest(contentHash, signature || "0x", overrides), "attestContent");
+}
+
+async function castVoteOnChain(electionId, pA, pB, pC, pubSignals) {
+  if (!pA || !pB || !pC || !Array.isArray(pA) || pA.length < 2 || !Array.isArray(pB) || pB.length < 2) {
+    throw new Error("Invalid or empty ZK proof parameters");
+  }
+  return executeTx((overrides) => voting.castVote(electionId, pA, pB, pC, pubSignals, overrides), "castVote");
 }
 
 async function getTally(electionId, candidateIndex) {
@@ -66,6 +93,8 @@ module.exports = {
   createElectionOnChain,
   setVoterRoot,
   lockVoterRoot,
+  attestContent,
+  castVoteOnChain,
   getTally,
   getNullifierStatus
 };

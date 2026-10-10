@@ -38,25 +38,34 @@ export default function ElectionPage() {
 
   useEffect(() => {
     if (!id) return;
-    setLoading(true);
-    setError("");
+    
+    function fetchDetails(isBackground = false) {
+      if (!isBackground) setLoading(true);
+      setError("");
 
-    axios.get(`${API_BASE}/public/elections/${id}/status`)
-      .then(r => setElection(r.data))
-      .catch(err => {
-        setError(
-          err.response?.data?.error ||
-          err.message ||
-          "Failed to load election. Is the backend running on port 4000?"
-        );
-      })
-      .finally(() => setLoading(false));
+      axios.get(`${API_BASE}/public/elections/${id}/status`)
+        .then(r => setElection(r.data))
+        .catch(err => {
+          if (!isBackground) {
+            setError(
+              err.response?.data?.error ||
+              err.message ||
+              "Failed to load election. Is the backend running on port 4000?"
+            );
+          }
+        })
+        .finally(() => { if (!isBackground) setLoading(false); });
 
-    axios.get(`${API_BASE}/public/elections/${id}/candidates`)
-      .then(r => setCandidates(r.data.candidates))
-      .catch(err => {
-        console.error("Failed to load candidates:", err.message);
-      });
+      axios.get(`${API_BASE}/public/elections/${id}/candidates`)
+        .then(r => setCandidates(r.data.candidates))
+        .catch(err => {
+          console.error("Failed to load candidates:", err.message);
+        });
+    }
+
+    fetchDetails(false);
+    const interval = setInterval(() => fetchDetails(true), 2500);
+    return () => clearInterval(interval);
   }, [id]);
 
   async function verifyIntegrity(candidateId) {
