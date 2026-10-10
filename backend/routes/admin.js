@@ -320,6 +320,72 @@ router.get("/elections/:id/candidates", checkElectionOwnership, async (req, res)
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.post("/elections/:id/candidate-roll", checkElectionOwnership, upload.single("file"), async (req, res) => {
+  try {
+    const fs = require("fs");
+    if (!req.file) {
+      return res.status(400).json({ error: "No CSV file uploaded." });
+    }
+    const content = fs.readFileSync(req.file.path, "utf-8").trim();
+    try { fs.unlinkSync(req.file.path); } catch (e) {}
+
+    const lines = content.split("\n").map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) {
+      return res.status(400).json({ error: "CSV file must contain a header and at least one candidate row." });
+    }
+
+    const header = lines[0].toLowerCase().split(",").map(h => h.trim().replace(/^"|"$/g, ''));
+    const nameIdx = header.findIndex(h => h.includes("name"));
+    const bioIdx = header.findIndex(h => h.includes("bio") || h.includes("party") || h.includes("summary"));
+    const manifestoIdx = header.findIndex(h => h.includes("manifesto") || h.includes("platform") || h.includes("policy"));
+
+    let added = 0;
+    let skipped = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i].split(",").map(c => c.trim().replace(/^"|"$/g, ''));
+      const name = nameIdx !== -1 ? row[nameIdx] : row[0];
+      const bio = bioIdx !== -1 ? row[bioIdx] : (row[1] || "Official Election Candidate");
+      const manifesto = manifestoIdx !== -1 ? row[manifestoIdx] : (row[2] || "Official Candidate Platform & Manifesto");
+
+      if (!name) {
+        skipped++;
+        continue;
+      }
+
+      const userEmail = `candidate_${Date.now()}_${Math.floor(Math.random()*10000)}_${i}@tri-vote.dev`;
+      const [userRes] = await pool.query(
+        `INSERT INTO users (role, email, password_hash) VALUES ('CANDIDATE', ?, 'hash')`,
+        [userEmail]
+      );
+      const userId = userRes.insertId;
+
+      const defaultStance = { economy: 0.6, environment: 0.8, healthcare: 0.7, education: 0.85, civil_rights: 0.75, security: 0.5 };
+
+      const [candRes] = await pool.query(
+        `INSERT INTO candidates (user_id, election_id, display_name, bio, public_key, stance_vector, status)
+         VALUES (?, ?, ?, ?, '0x0', ?, 'APPROVED')`,
+        [userId, req.params.id, name, bio, JSON.stringify(defaultStance)]
+      );
+      const candidateId = candRes.insertId;
+
+      if (manifesto) {
+        const contentHash = ethers.keccak256(ethers.toUtf8Bytes(manifesto));
+        await pool.query(
+          `INSERT INTO attested_content (candidate_id, content_type, storage_uri, content_hash, signature, onchain_tx_hash)
+           VALUES (?, 'MANIFESTO', 'inline', ?, '0x', '0x_admin_preapproved')`,
+          [candidateId, contentHash]
+        );
+      }
+      added++;
+    }
+
+    res.json({ ok: true, added, skipped });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post("/elections/:id/candidates", checkElectionOwnership, async (req, res) => {
   try {
     const { name, bio, manifesto } = req.body;
