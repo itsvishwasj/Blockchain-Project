@@ -5,12 +5,21 @@ const VotingAbi = require("../abi/Voting.json");
 const VoterRegistryAbi = require("../abi/VoterRegistry.json");
 const ContentAttestationAbi = require("../abi/ContentAttestation.json");
 
-const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL || "http://127.0.0.1:8545");
-const adminWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+const DEFAULT_DEV_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+const rawPrivateKey = (process.env.PRIVATE_KEY || "").trim();
+const privateKey = (rawPrivateKey.startsWith("0x") && rawPrivateKey.length === 66) ? rawPrivateKey : DEFAULT_DEV_KEY;
 
-const voting = new ethers.Contract(process.env.VOTING_CONTRACT_ADDRESS, VotingAbi, adminWallet);
-const registry = new ethers.Contract(process.env.REGISTRY_CONTRACT_ADDRESS, VoterRegistryAbi, adminWallet);
-const attestation = new ethers.Contract(process.env.ATTESTATION_CONTRACT_ADDRESS, ContentAttestationAbi, adminWallet);
+const rpcUrl = process.env.SEPOLIA_RPC_URL || process.env.RPC_URL || "http://127.0.0.1:8545";
+const provider = new ethers.JsonRpcProvider(rpcUrl);
+const adminWallet = new ethers.Wallet(privateKey, provider);
+
+const votingAddr = process.env.VOTING_CONTRACT_ADDRESS || "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
+const registryAddr = process.env.REGISTRY_CONTRACT_ADDRESS || "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+const attestationAddr = process.env.ATTESTATION_CONTRACT_ADDRESS || "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9";
+
+const voting = new ethers.Contract(votingAddr, VotingAbi, adminWallet);
+const registry = new ethers.Contract(registryAddr, VoterRegistryAbi, adminWallet);
+const attestation = new ethers.Contract(attestationAddr, ContentAttestationAbi, adminWallet);
 
 // ─────────────────────────────────────────────
 // TIMEOUT SAFEGUARD
