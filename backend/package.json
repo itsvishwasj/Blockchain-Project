@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "reset-db": "node scripts/reset_db.js"
+    "reset-db": "node scripts/reset_db.js",
+    "postinstall": "npm rebuild sqlite3 --build-from-source"
   },
   "engines": {
     "node": "20.x"
