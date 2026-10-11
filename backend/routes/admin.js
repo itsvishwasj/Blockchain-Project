@@ -179,13 +179,33 @@ router.get("/elections", async (req, res) => {
 
 router.post("/elections", async (req, res) => {
   try {
-    const { title, description, startTime, endTime, contractAddress } = req.body;
+    const { title, description, startTime, endTime, start_time, end_time, contractAddress } = req.body;
+    const rawStart = startTime || start_time;
+    const rawEnd = endTime || end_time;
+
+    let finalStart = rawStart;
+    let finalEnd = rawEnd;
+
+    if (finalStart) {
+      const d = new Date(finalStart);
+      if (!isNaN(d.getTime())) finalStart = d.toISOString();
+    } else {
+      finalStart = new Date().toISOString();
+    }
+
+    if (finalEnd) {
+      const d = new Date(finalEnd);
+      if (!isNaN(d.getTime())) finalEnd = d.toISOString();
+    } else {
+      finalEnd = new Date(Date.now() + 86400000).toISOString();
+    }
+
     const [result] = await pool.query(
       `INSERT INTO elections (title, description, merkle_root, contract_address, start_time, end_time, status, created_by)
        VALUES (?, ?, '0x0', ?, ?, ?, 'DRAFT', ?)`,
-      [title, description || "", contractAddress || "0x0", startTime, endTime, req.user.userId]
+      [title, description || "", contractAddress || "0x0", finalStart, finalEnd, req.user.userId]
     );
-    res.status(201).json({ electionId: result.insertId });
+    res.status(201).json({ electionId: result.insertId, startTime: finalStart, endTime: finalEnd });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

@@ -30,6 +30,17 @@ import {
   Trash2,
 } from 'lucide-react';
 
+function formatLocalDateTime(date) {
+  const d = date instanceof Date ? date : new Date(date || Date.now());
+  const pad = (n) => String(n).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 export function AdminTab({ toast }) {
   const [loading, setLoading] = useState(true);
   const [elections, setElections] = useState([]);
@@ -48,11 +59,11 @@ export function AdminTab({ toast }) {
   const [selectedCsvFile, setSelectedCsvFile] = useState(null);
   const [selectedCandidateCsvFile, setSelectedCandidateCsvFile] = useState(null);
 
-  // New Election Form state
+  // New Election Form state - initialized with user's actual local time
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [newStartTime, setNewStartTime] = useState('');
-  const [newEndTime, setNewEndTime] = useState('');
+  const [newStartTime, setNewStartTime] = useState(() => formatLocalDateTime(new Date()));
+  const [newEndTime, setNewEndTime] = useState(() => formatLocalDateTime(new Date(Date.now() + 86400000)));
 
   // Quick Add Candidate Form state
   const [quickCandName, setQuickCandName] = useState('');
@@ -124,11 +135,6 @@ export function AdminTab({ toast }) {
       // Sort newest created election first
       list.sort((a, b) => b.id - a.id);
       setElections(list);
-
-      const now = new Date();
-      const tomorrow = new Date(Date.now() + 86400000);
-      if (!newStartTime) setNewStartTime(now.toISOString().slice(0, 16));
-      if (!newEndTime) setNewEndTime(tomorrow.toISOString().slice(0, 16));
 
       // Restore active election view on initial load/refresh if active election saved or in URL
       if (!isBackgroundPoll && typeof window !== 'undefined' && !activeManageElection && window.location.pathname.startsWith('/admin')) {
@@ -284,6 +290,8 @@ export function AdminTab({ toast }) {
 
       setNewTitle('');
       setNewDescription('');
+      setNewStartTime(formatLocalDateTime(new Date()));
+      setNewEndTime(formatLocalDateTime(new Date(Date.now() + 86400000)));
       await fetchRealTimeElections();
       loadElectionDetails(createdObj, 1);
     } catch (err) {
