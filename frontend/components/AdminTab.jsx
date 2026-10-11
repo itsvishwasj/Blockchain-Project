@@ -381,7 +381,7 @@ export function AdminTab({ toast }) {
     setActionLoading(true);
     try {
       const { data } = await api.post(`/admin/elections/${electionId}/preload-candidates`);
-      toast && toast('success', 'Candidates Preloaded', `${data.added !== undefined ? data.added : 3} sample candidate profiles added & approved.`);
+      toast && toast('success', 'Candidates Preloaded', data.message || `${data.added !== undefined ? data.added : 3} sample candidate profiles added & approved.`);
       if (activeManageElection) loadElectionDetails(activeManageElection, wizardStep);
       fetchRealTimeElections();
     } catch (err) {

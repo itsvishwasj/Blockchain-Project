@@ -1,4 +1,6 @@
 const express = require("express");
+const path = require("path");
+const fs = require("fs");
 const multer = require("multer");
 const pool = require("../db/pool");
 const { requireAuth } = require("../middleware/auth");
@@ -488,7 +490,14 @@ router.post("/elections/:id/preload-candidates", checkElectionOwnership, async (
       added++;
     }
 
-    res.json({ ok: true, added, count: sampleCandidates.length });
+    res.json({
+      ok: true,
+      added,
+      count: sampleCandidates.length,
+      message: added > 0
+        ? `${added} sample candidate profiles added & approved.`
+        : `Sample candidates are already loaded for this election.`
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
