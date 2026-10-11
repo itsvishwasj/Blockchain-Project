@@ -1,6 +1,10 @@
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 
+// Dedicated bot Google account for TriVote system notifications
+const DEFAULT_EMAIL_USER = "majorproject382027@gmail.com";
+const DEFAULT_EMAIL_PASS = "tirofssbqcvinspk";
+
 function getTransporter() {
   if (process.env.SMTP_HOST) {
     return nodemailer.createTransport({
@@ -8,17 +12,30 @@ function getTransporter() {
       port: Number(process.env.SMTP_PORT) || 587,
       secure: process.env.SMTP_SECURE === "true",
       auth: {
-        user: process.env.SMTP_USER || process.env.EMAIL_USER,
-        pass: process.env.SMTP_PASS || process.env.EMAIL_PASS
+        user: (process.env.SMTP_USER || process.env.EMAIL_USER || DEFAULT_EMAIL_USER).trim(),
+        pass: (process.env.SMTP_PASS || process.env.EMAIL_PASS || DEFAULT_EMAIL_PASS).replace(/\s+/g, "")
       }
     });
   }
-  if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+
+  const rawUser = process.env.EMAIL_USER || DEFAULT_EMAIL_USER;
+  const rawPass = process.env.EMAIL_PASS || DEFAULT_EMAIL_PASS;
+
+  const user = String(rawUser).trim();
+  const pass = String(rawPass).replace(/\s+/g, "");
+
+  if (user && pass) {
+    // Port 465 SSL is direct and reliable across all cloud hosting providers (Render, AWS, GCP)
     return nodemailer.createTransport({
-      service: process.env.EMAIL_SERVICE || "gmail",
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        user,
+        pass
+      },
+      tls: {
+        rejectUnauthorized: false
       }
     });
   }
@@ -31,7 +48,9 @@ async function sendOTP(toEmail, otpCode) {
     throw new Error("SMTP credentials not configured (EMAIL_USER & EMAIL_PASS or SMTP_HOST)");
   }
 
-  const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_USER || "noreply@tri-vote.dev";
+  const rawUser = process.env.EMAIL_USER || DEFAULT_EMAIL_USER;
+  const fromAddress = (process.env.EMAIL_FROM || rawUser || DEFAULT_EMAIL_USER).trim();
+
   const mailOptions = {
     from: `"TriVote E-Voting System" <${fromAddress}>`,
     to: toEmail,
@@ -57,7 +76,26 @@ async function sendOTP(toEmail, otpCode) {
     `
   };
 
-  await transporter.sendMail(mailOptions);
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (primaryErr) {
+    // If port 465 had an issue, fallback to port 587
+    console.warn("Primary SMTP delivery attempt failed, trying fallback port 587:", primaryErr.message);
+    const rawPass = process.env.EMAIL_PASS || DEFAULT_EMAIL_PASS;
+    const fallbackTransporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: (process.env.EMAIL_USER || DEFAULT_EMAIL_USER).trim(),
+        pass: String(rawPass).replace(/\s+/g, "")
+      },
+      tls: {
+        rejectUnauthorized: false
+      }
+    });
+    await fallbackTransporter.sendMail(mailOptions);
+  }
 }
 
 function generateOTP() {
