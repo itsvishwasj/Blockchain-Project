@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AdminTab } from '@/components/AdminTab';
 import { ToastContainer } from '@/components/Toast';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { ArrowLeft, RefreshCw, ShieldCheck, User } from 'lucide-react';
 import { api } from '@/lib/api';
 import Link from 'next/link';
@@ -59,6 +60,7 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             {userProfile && (
               <div className="flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/70 px-3 py-1 text-xs">
                 <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold text-[11px]">

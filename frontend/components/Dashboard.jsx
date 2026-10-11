@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ArrowLeft,
 } from 'lucide-react';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { useState, useEffect } from 'react';
 
 export function Dashboard(props) {
@@ -117,6 +118,7 @@ export function Dashboard(props) {
 
           {/* User profile / Back to Home navigation action */}
           <div className="relative flex items-center gap-3">
+            <ThemeToggle />
             {role === 'voter' ? (
               <a
                 href="/"

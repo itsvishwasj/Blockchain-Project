@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CandidateTab } from '@/components/CandidateTab';
 import { ToastContainer } from '@/components/Toast';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { ArrowLeft, User } from 'lucide-react';
 import { api } from '@/lib/api';
 import Link from 'next/link';
@@ -59,6 +60,7 @@ export default function CandidateDashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             {userProfile && (
               <div className="flex items-center gap-2 rounded-xl border border-purple-200 bg-purple-50/70 px-3 py-1 text-xs">
                 <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-purple-600 text-white font-bold text-[11px]">

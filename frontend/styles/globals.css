@@ -46,3 +46,151 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* ========================================================================= */
+/* GitHub Style Dark Mode (Grey Shades)                                      */
+/* Canvas Default: #0d1117 | Canvas Subtle/Cards: #161b22 | Inputs: #21262d  */
+/* Borders: #30363d | Text: #e6edf3 | Muted Text: #8b949e                    */
+/* ========================================================================= */
+
+html.dark,
+.dark body {
+  background-color: #0d1117 !important;
+  color: #e6edf3 !important;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #30363d;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+
+.dark .card-light {
+  background: #161b22;
+  border-color: #30363d;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+}
+
+.dark .card-light:hover {
+  box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.6);
+  border-color: #484f58;
+}
+
+/* Backgrounds */
+.dark .bg-\[\#f3f6fc\],
+.dark .bg-slate-50 {
+  background-color: #0d1117 !important;
+}
+
+.dark .bg-white {
+  background-color: #161b22 !important;
+  color: #e6edf3 !important;
+}
+
+.dark .bg-white\/90,
+.dark .bg-white\/95 {
+  background-color: rgba(22, 27, 34, 0.92) !important;
+}
+
+.dark .bg-slate-100,
+.dark .bg-slate-100\/80,
+.dark .bg-slate-50\/50,
+.dark .bg-slate-50\/80 {
+  background-color: #21262d !important;
+}
+
+/* Text colors */
+.dark .text-slate-900,
+.dark .text-slate-800 {
+  color: #e6edf3 !important;
+}
+
+.dark .text-slate-700 {
+  color: #c9d1d9 !important;
+}
+
+.dark .text-slate-600,
+.dark .text-slate-500 {
+  color: #8b949e !important;
+}
+
+.dark .text-slate-400 {
+  color: #6e7681 !important;
+}
+
+/* Borders */
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-200\/60,
+.dark .border-slate-200\/80,
+.dark .border-slate-300 {
+  border-color: #30363d !important;
+}
+
+/* Form Controls: Inputs, Selects, Textareas */
+.dark input[type="text"],
+.dark input[type="password"],
+.dark input[type="email"],
+.dark input[type="datetime-local"],
+.dark select,
+.dark textarea {
+  background-color: #21262d !important;
+  border-color: #30363d !important;
+  color: #e6edf3 !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #6e7681 !important;
+}
+
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: #2f81f7 !important;
+  box-shadow: 0 0 0 3px rgba(47, 129, 247, 0.15) !important;
+}
+
+/* Status Badges in Dark Mode */
+.dark .bg-blue-50 {
+  background-color: rgba(56, 139, 253, 0.15) !important;
+  border-color: rgba(56, 139, 253, 0.4) !important;
+  color: #58a6ff !important;
+}
+
+.dark .bg-emerald-50 {
+  background-color: rgba(46, 160, 67, 0.15) !important;
+  border-color: rgba(46, 160, 67, 0.4) !important;
+  color: #3fb950 !important;
+}
+
+.dark .bg-amber-50 {
+  background-color: rgba(210, 153, 34, 0.15) !important;
+  border-color: rgba(210, 153, 34, 0.4) !important;
+  color: #d29922 !important;
+}
+
+.dark .bg-purple-50 {
+  background-color: rgba(163, 113, 247, 0.15) !important;
+  border-color: rgba(163, 113, 247, 0.4) !important;
+  color: #bc8cff !important;
+}
+
+.dark .bg-rose-50,
+.dark .bg-red-50 {
+  background-color: rgba(248, 81, 73, 0.15) !important;
+  border-color: rgba(248, 81, 73, 0.4) !important;
+  color: #f85149 !important;
+}
+
+/* Modals & Popovers */
+.dark .backdrop-blur-sm,
+.dark .backdrop-blur-md {
+  background-color: rgba(13, 17, 23, 0.75) !important;
+}

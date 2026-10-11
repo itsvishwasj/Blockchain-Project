@@ -1,4 +1,5 @@
 import { ShieldCheck, FileText, Vote as VoteIcon, Sparkles } from 'lucide-react';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export function LandingPage({ onSelectPortal }) {
   return (
@@ -14,12 +15,15 @@ export function LandingPage({ onSelectPortal }) {
           </span>
         </div>
 
-        <div className="flex items-center gap-2 rounded-full bg-emerald-50 border border-emerald-200 px-3.5 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-          </span>
-          System Live
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <div className="flex items-center gap-2 rounded-full bg-emerald-50 border border-emerald-200 px-3.5 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
+            System Live
+          </div>
         </div>
       </header>
 
