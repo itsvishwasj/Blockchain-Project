@@ -41,6 +41,9 @@ export function VoterTab({
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
   const [otpVerified, setOtpVerified] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [otpDevHint, setOtpDevHint] = useState('');
   const [commitment, setCommitment] = useState(null);
   const [voterStance, setVoterStance] = useState(createEmptyStance());
   const [matchResults, setMatchResults] = useState([]);
@@ -129,23 +132,62 @@ export function VoterTab({
     }
   };
 
-  const handleSendOtp = () => {
+  const handleSendOtp = async () => {
     if (!voterId.trim() || !email.trim()) {
       safeToast('error', 'Missing credentials', 'Please enter Voter ID and Email.');
       return;
     }
-    setOtpSent(true);
-    setOtp('4271');
-    safeToast('info', 'OTP Sent', `Passcode sent to ${email}. (Demo OTP: 4271)`);
+    setIsSendingOtp(true);
+    setOtpDevHint('');
+    try {
+      const { data } = await api.post('/auth/voter/request-otp', {
+        voterId: voterId.trim(),
+        email: email.trim(),
+        electionId: selectedElectionId || undefined
+      });
+      setOtpSent(true);
+      setOtp('');
+      if (data.devOtp) {
+        setOtpDevHint(data.devOtp);
+      }
+      safeToast('info', 'OTP Sent', data.message || `Verification passcode sent to ${email}.`);
+    } catch (err) {
+      const errMsg = err.response?.data?.error || 'Failed to authenticate voter or send OTP.';
+      safeToast('error', 'Authentication Failed', errMsg);
+    } finally {
+      setIsSendingOtp(false);
+    }
   };
 
-  const handleVerifyOtp = () => {
-    if (otp.trim() !== '4271' && otp.trim().length < 4) {
-      safeToast('error', 'Invalid OTP', 'The passcode you entered is incorrect.');
+  const handleVerifyOtp = async () => {
+    if (!otp.trim()) {
+      safeToast('error', 'Missing Passcode', 'Please enter the verification code sent to your email.');
       return;
     }
-    setOtpVerified(true);
-    safeToast('success', 'Email Verified', 'Identity confirmed via OTP.');
+    setIsVerifyingOtp(true);
+    try {
+      const { data } = await api.post('/auth/voter/verify-otp', {
+        voterId: voterId.trim(),
+        email: email.trim(),
+        otp: otp.trim()
+      });
+      if (data.token) {
+        try {
+          localStorage.setItem('token', data.token);
+          sessionStorage.setItem('token', data.token);
+          localStorage.setItem('userEmail', email.trim());
+          localStorage.setItem('voterId', voterId.trim());
+          localStorage.setItem('role', 'voter');
+        } catch (e) {}
+      }
+      setOtpVerified(true);
+      safeToast('success', 'Email Verified', data.message || 'Identity confirmed via email OTP.');
+    } catch (err) {
+      const errMsg = err.response?.data?.error || 'Invalid or expired OTP passcode.';
+      safeToast('error', 'Verification Failed', errMsg);
+    } finally {
+      setIsVerifyingOtp(false);
+    }
   };
 
   const handleGenerateCommitment = () => {
@@ -335,41 +377,80 @@ export function VoterTab({
             {!otpSent ? (
               <button
                 onClick={handleSendOtp}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl py-3 text-sm transition-all shadow-sm active:scale-[0.99] flex items-center justify-center gap-2"
+                disabled={isSendingOtp}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl py-3 text-sm transition-all shadow-sm active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
               >
-                <Mail className="h-4 w-4" />
-                Send Email Passcode
+                {isSendingOtp ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Authenticating &amp; Sending OTP...</span>
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4" />
+                    <span>Send Email Passcode</span>
+                  </>
+                )}
               </button>
             ) : (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">One-Time Passcode</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700">One-Time Passcode</label>
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={isSendingOtp || otpVerified}
+                      className="text-xs text-blue-600 hover:text-blue-700 font-bold hover:underline cursor-pointer disabled:opacity-50"
+                    >
+                      {isSendingOtp ? "Sending..." : "Resend Code"}
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={otp}
-                    onChange={e => setOtp(e.target.value)}
-                    disabled={otpVerified}
-                    className="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-mono text-slate-900 text-center tracking-widest focus:border-blue-500 focus:outline-none"
-                    placeholder="Enter OTP"
-                    maxLength={4}
+                    onChange={e => setOtp(e.target.value.trim())}
+                    disabled={otpVerified || isVerifyingOtp}
+                    className="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-base font-mono text-slate-900 text-center tracking-widest focus:border-blue-500 focus:outline-none"
+                    placeholder="Enter 6-digit OTP"
+                    maxLength={6}
+                    autoFocus
                   />
-                  <p className="text-xs text-slate-400 mt-1">Demo OTP: 4271</p>
+                  {otpDevHint && (
+                    <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center justify-between">
+                      <span>Server fallback OTP code:</span>
+                      <strong className="font-mono tracking-widest text-amber-950 font-bold">{otpDevHint}</strong>
+                    </div>
+                  )}
+                  <p className="text-xs text-slate-500 mt-1.5">
+                    Enter the 6-digit passcode sent to <strong className="text-slate-700">{email}</strong>.
+                  </p>
                 </div>
                 {!otpVerified ? (
                   <button
                     onClick={handleVerifyOtp}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl py-3 text-sm transition-all shadow-sm"
+                    disabled={isVerifyingOtp || !otp.trim()}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl py-3 text-sm transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
                   >
-                    <Shield className="h-4 w-4 inline mr-2" />
-                    Verify Passcode
+                    {isVerifyingOtp ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Verifying Passcode...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="h-4 w-4" />
+                        <span>Verify Passcode</span>
+                      </>
+                    )}
                   </button>
                 ) : (
                   <button
                     onClick={() => setStep(2)}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl py-3 text-sm transition-all shadow-sm flex items-center justify-center gap-2"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl py-3 text-sm transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <CheckCircle2 className="h-4 w-4" />
-                    Continue to Identity Commitment →
+                    <span>Continue to Identity Commitment →</span>
                   </button>
                 )}
               </div>

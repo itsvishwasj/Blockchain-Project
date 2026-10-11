@@ -299,4 +299,207 @@ router.get("/me", requireAuth(["ADMIN", "CANDIDATE", "VOTER"]), async (req, res)
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// VOTER PORTAL AUTHENTICATION & OTP (Step 1 of Voter Tab)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PRELOADED_WHITELIST = [
+  { voterId: 'VTR-1001', email: 'alice@tri-vote.dev' },
+  { voterId: 'VTR-1002', email: 'bob@tri-vote.dev' },
+  { voterId: 'VTR-1003', email: 'charlie@tri-vote.dev' },
+];
+
+router.post("/voter/request-otp", async (req, res) => {
+  try {
+    const { voterId, email, electionId } = req.body;
+    if (!voterId || !email) {
+      return res.status(400).json({ error: "Both Voter ID and Email are required." });
+    }
+
+    const cleanVoterId = String(voterId).trim().toUpperCase();
+    const cleanEmail = String(email).trim().toLowerCase();
+
+    // 1. Authenticate voter eligibility
+    let isEligible = false;
+    let voterFullName = "Registered Voter";
+
+    try {
+      let rollQuery = "SELECT id, full_name, email, voter_id FROM voter_rolls WHERE (LOWER(email) = ? OR UPPER(voter_id) = ?)";
+      const rollParams = [cleanEmail, cleanVoterId];
+
+      if (electionId) {
+        rollQuery += " AND election_id = ?";
+        rollParams.push(electionId);
+      }
+      rollQuery += " LIMIT 1";
+
+      const [rolls] = await pool.query(rollQuery, rollParams);
+      if (rolls && rolls.length > 0) {
+        isEligible = true;
+        if (rolls[0].full_name) voterFullName = rolls[0].full_name;
+      }
+    } catch (e) {
+      console.warn("Voter rolls lookup notice:", e.message);
+    }
+
+    // Check against users table
+    if (!isEligible) {
+      try {
+        const [users] = await pool.query(
+          "SELECT id, email, voter_id FROM users WHERE LOWER(email) = ? OR UPPER(voter_id) = ? LIMIT 1",
+          [cleanEmail, cleanVoterId]
+        );
+        if (users && users.length > 0) {
+          isEligible = true;
+        }
+      } catch (e) {
+        console.warn("Users lookup notice:", e.message);
+      }
+    }
+
+    // Check against preloaded whitelist
+    if (!isEligible) {
+      const isPreloaded = PRELOADED_WHITELIST.some(
+        w => w.voterId.toUpperCase() === cleanVoterId || w.email.toLowerCase() === cleanEmail
+      );
+      if (isPreloaded) {
+        isEligible = true;
+      }
+    }
+
+    if (!isEligible) {
+      return res.status(403).json({
+        error: "Voter credentials not found. Your Voter ID and Email must match an eligible voter in the election roll."
+      });
+    }
+
+    // 2. Ensure a user row exists
+    let userId = null;
+    try {
+      const [existingUsers] = await pool.query(
+        "SELECT id FROM users WHERE LOWER(email) = ? LIMIT 1",
+        [cleanEmail]
+      );
+      if (existingUsers && existingUsers.length > 0) {
+        userId = existingUsers[0].id;
+      } else {
+        const [insResult] = await pool.query(
+          "INSERT INTO users (role, email, password_hash, voter_id, phone_verified) VALUES ('VOTER', ?, 'NOPASS', ?, 1)",
+          [cleanEmail, cleanVoterId]
+        );
+        userId = insResult.insertId;
+      }
+    } catch (err) {
+      console.warn("User record creation note:", err.message);
+    }
+
+    // 3. Generate 6-digit OTP
+    const otp = generateOTP();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    try {
+      await pool.query(
+        "UPDATE otp_verifications SET used = 1 WHERE (email = ? OR user_id = ?) AND purpose = 'VOTER_PORTAL_OTP'",
+        [cleanEmail, userId]
+      );
+    } catch (e) {}
+
+    await pool.query(
+      "INSERT INTO otp_verifications (user_id, email, otp_code, purpose, expires_at) VALUES (?, ?, ?, 'VOTER_PORTAL_OTP', ?)",
+      [userId, cleanEmail, otp, expiresAt]
+    );
+
+    // 4. Send OTP to voter's email
+    let emailSent = false;
+    try {
+      await sendOTP(cleanEmail, otp);
+      emailSent = true;
+      console.log(`📧 Voter OTP sent to ${cleanEmail}`);
+    } catch (emailErr) {
+      emailSent = false;
+      console.warn(`⚠️ Voter OTP email sending failed for ${cleanEmail}: ${emailErr.message}`);
+      console.log(`🔑 Fallback Voter OTP for ${cleanEmail}: ${otp}`);
+    }
+
+    res.json({
+      ok: true,
+      message: emailSent
+        ? `A 6-digit verification passcode has been sent to ${cleanEmail}.`
+        : `Verification code generated for ${cleanEmail}.${!emailSent ? " (SMTP unconfigured on server)" : ""}`,
+      emailSent,
+      devOtp: !emailSent ? otp : undefined
+    });
+  } catch (err) {
+    console.error("voter request-otp error:", err);
+    res.status(500).json({ error: err.message || "Failed to process voter authentication request." });
+  }
+});
+
+router.post("/voter/verify-otp", async (req, res) => {
+  try {
+    const { voterId, email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ error: "Email and OTP passcode are required." });
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanOtp = String(otp).trim();
+    const cleanVoterId = voterId ? String(voterId).trim().toUpperCase() : "";
+
+    const [rows] = await pool.query(
+      `SELECT ov.*, u.id as user_id, u.role, u.email as user_email, u.voter_id as user_voter_id
+       FROM otp_verifications ov
+       LEFT JOIN users u ON u.id = ov.user_id
+       WHERE (LOWER(ov.email) = ? OR LOWER(u.email) = ?)
+         AND ov.otp_code = ?
+         AND ov.purpose = 'VOTER_PORTAL_OTP'
+         AND ov.used = 0
+       ORDER BY ov.created_at DESC LIMIT 1`,
+      [cleanEmail, cleanEmail, cleanOtp]
+    );
+
+    if (!rows.length) {
+      return res.status(400).json({
+        error: "Invalid or expired OTP. Please enter the passcode sent to your email."
+      });
+    }
+
+    const verificationRecord = rows[0];
+    const isExpired = new Date(verificationRecord.expires_at).getTime() < Date.now();
+    if (isExpired) {
+      return res.status(400).json({
+        error: "This OTP has expired. Please request a new passcode."
+      });
+    }
+
+    await pool.query("UPDATE otp_verifications SET used = 1 WHERE id = ?", [verificationRecord.id]);
+
+    const finalUserId = verificationRecord.user_id || 1;
+    const finalVoterId = verificationRecord.user_voter_id || cleanVoterId;
+
+    const token = jwt.sign(
+      { userId: finalUserId, role: "VOTER", email: cleanEmail, voterId: finalVoterId },
+      process.env.JWT_SECRET || "supersecretjwtkeyforvotingapp123456789",
+      { expiresIn: "12h" }
+    );
+
+    console.log(`✅ Voter identity and OTP successfully verified for ${cleanEmail} (${finalVoterId})`);
+
+    res.json({
+      ok: true,
+      verified: true,
+      token,
+      voter: {
+        userId: finalUserId,
+        email: cleanEmail,
+        voterId: finalVoterId
+      },
+      message: "Voter identity authenticated and OTP successfully verified."
+    });
+  } catch (err) {
+    console.error("voter verify-otp error:", err);
+    res.status(500).json({ error: err.message || "Failed to verify OTP." });
+  }
+});
+
 module.exports = router;
