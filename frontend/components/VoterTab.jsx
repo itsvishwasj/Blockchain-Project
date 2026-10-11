@@ -5,6 +5,7 @@ import { cosineSimilarity, simulatePoseidonCommitment, simulateNullifier, simula
 import { PRELOADED_WHITELIST, DEFAULT_LATENCY_METRICS } from '@/lib/data';
 import { PolicySliders, createEmptyStance } from '@/components/PolicySliders';
 import { PerformanceModal } from '@/components/PerformanceModal';
+import { ToastContainer } from '@/components/Toast';
 import {
   LogIn,
   Mail,
@@ -48,6 +49,8 @@ export function VoterTab({
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [otpDevHint, setOtpDevHint] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [localToasts, setLocalToasts] = useState([]);
   const [commitment, setCommitment] = useState(null);
   const [voterStance, setVoterStance] = useState(createEmptyStance());
   const [matchResults, setMatchResults] = useState([]);
@@ -114,9 +117,13 @@ export function VoterTab({
   const safeToast = (type, title, message) => {
     if (typeof toast === 'function') {
       toast(type, title, message);
-    } else {
-      console.log(`[Toast ${type}] ${title}: ${message}`);
     }
+    const id = Date.now() + Math.random();
+    setLocalToasts(prev => [...prev, { id, type, title, message }]);
+  };
+
+  const dismissLocalToast = (id) => {
+    setLocalToasts(prev => prev.filter(t => t.id !== id));
   };
 
   const handleTriggerPerformanceView = (rcpt) => {
@@ -137,8 +144,11 @@ export function VoterTab({
   };
 
   const handleSendOtp = async () => {
+    setAuthError('');
     if (!voterId.trim() || !email.trim()) {
-      safeToast('error', 'Missing credentials', 'Please enter Voter ID and Email.');
+      const err = 'Please enter both your Voter ID and Email address.';
+      setAuthError(err);
+      safeToast('error', 'Missing credentials', err);
       return;
     }
     setIsSendingOtp(true);
@@ -156,7 +166,8 @@ export function VoterTab({
       }
       safeToast('info', 'OTP Sent', data.message || `Verification passcode sent to ${email}.`);
     } catch (err) {
-      const errMsg = err.response?.data?.error || 'Failed to authenticate voter or send OTP.';
+      const errMsg = err.response?.data?.error || err.message || 'Failed to authenticate voter or send OTP.';
+      setAuthError(errMsg);
       safeToast('error', 'Authentication Failed', errMsg);
     } finally {
       setIsSendingOtp(false);
@@ -164,8 +175,11 @@ export function VoterTab({
   };
 
   const handleVerifyOtp = async () => {
+    setAuthError('');
     if (!otp.trim()) {
-      safeToast('error', 'Missing Passcode', 'Please enter the verification code sent to your email.');
+      const err = 'Please enter the 6-digit verification code sent to your email.';
+      setAuthError(err);
+      safeToast('error', 'Missing Passcode', err);
       return;
     }
     setIsVerifyingOtp(true);
@@ -187,7 +201,8 @@ export function VoterTab({
       setOtpVerified(true);
       safeToast('success', 'Email Verified', data.message || 'Identity confirmed via email OTP.');
     } catch (err) {
-      const errMsg = err.response?.data?.error || 'Invalid or expired OTP passcode.';
+      const errMsg = err.response?.data?.error || err.message || 'Invalid or expired OTP passcode.';
+      setAuthError(errMsg);
       safeToast('error', 'Verification Failed', errMsg);
     } finally {
       setIsVerifyingOtp(false);
@@ -358,7 +373,7 @@ export function VoterTab({
                 <input
                   type="text"
                   value={voterId}
-                  onChange={e => { setVoterId(e.target.value); setOtpSent(false); setOtpVerified(false); }}
+                  onChange={e => { setVoterId(e.target.value); setOtpSent(false); setOtpVerified(false); setAuthError(''); }}
                   className="w-full rounded-xl bg-white border border-slate-200 pl-10 pr-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none transition-all"
                   placeholder="VTR-1001"
                 />
@@ -371,12 +386,21 @@ export function VoterTab({
                 <input
                   type="email"
                   value={email}
-                  onChange={e => { setEmail(e.target.value); setOtpSent(false); setOtpVerified(false); }}
+                  onChange={e => { setEmail(e.target.value); setOtpSent(false); setOtpVerified(false); setAuthError(''); }}
                   className="w-full rounded-xl bg-white border border-slate-200 pl-10 pr-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none transition-all"
                   placeholder="alice@tri-vote.dev"
                 />
               </div>
             </div>
+
+            {authError && (
+              <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2.5">
+                <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-semibold">{authError}</p>
+                </div>
+              </div>
+            )}
 
             {!otpSent ? (
               <button
@@ -828,6 +852,9 @@ export function VoterTab({
 
       {/* Render local performance modal if triggered */}
       <PerformanceModal receipt={localReceiptModal} onClose={() => setLocalReceiptModal(null)} />
+
+      {/* Render local toast notifications */}
+      <ToastContainer toasts={localToasts} onDismiss={dismissLocalToast} />
     </div>
   );
 }

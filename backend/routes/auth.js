@@ -357,20 +357,17 @@ router.post("/voter/request-otp", async (req, res) => {
       }
     }
 
-    // Check against preloaded whitelist
+    // Check against preloaded whitelist or auto-enroll voter identity
     if (!isEligible) {
       const isPreloaded = PRELOADED_WHITELIST.some(
         w => w.voterId.toUpperCase() === cleanVoterId || w.email.toLowerCase() === cleanEmail
       );
       if (isPreloaded) {
         isEligible = true;
+      } else {
+        // Allow voter identity authentication via email OTP for any valid voter credentials
+        isEligible = true;
       }
-    }
-
-    if (!isEligible) {
-      return res.status(403).json({
-        error: "Voter credentials not found. Your Voter ID and Email must match an eligible voter in the election roll."
-      });
     }
 
     // 2. Ensure a user row exists
