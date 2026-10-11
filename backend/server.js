@@ -351,7 +351,7 @@ app.get("/admin/metrics", (req, res) => {
   });
 });
 
-app.get("/health", (req, res) => res.json({ ok: true, version: "v2.5-fast", build: "2026-10-11-fast-otp" }));
+app.get("/health", (req, res) => res.json({ ok: true, version: "v2.6-resend", build: "2026-10-11-resend-status" }));
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
