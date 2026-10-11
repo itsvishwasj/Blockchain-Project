@@ -4,16 +4,16 @@ import axios from "axios";
 const CLOUD_API_BASE = "https://blockchain-project-i6kd.onrender.com";
 
 export function getApiBase() {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return "http://localhost:4000";
+    }
+  }
   if (process.env.NEXT_PUBLIC_API_BASE) {
     return process.env.NEXT_PUBLIC_API_BASE;
   }
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname;
-    if (host !== "localhost" && host !== "127.0.0.1") {
-      return CLOUD_API_BASE;
-    }
-  }
-  return "http://localhost:4000";
+  return CLOUD_API_BASE;
 }
 
 const API_BASE = getApiBase();
@@ -21,9 +21,10 @@ const api = axios.create({ baseURL: API_BASE, timeout: 20000 });
 
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    // Automatically route to cloud backend when accessed from any other device or live domain
     const host = window.location.hostname;
-    if (host !== "localhost" && host !== "127.0.0.1") {
+    if (host === "localhost" || host === "127.0.0.1") {
+      config.baseURL = "http://localhost:4000";
+    } else {
       if (!config.baseURL || config.baseURL.includes("localhost") || config.baseURL.includes("127.0.0.1")) {
         config.baseURL = CLOUD_API_BASE;
       }
