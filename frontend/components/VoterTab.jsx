@@ -49,6 +49,7 @@ export function VoterTab({
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [otpDevHint, setOtpDevHint] = useState('');
+  const [otpEmailError, setOtpEmailError] = useState('');
   const [authError, setAuthError] = useState('');
   const [localToasts, setLocalToasts] = useState([]);
   const [commitment, setCommitment] = useState(null);
@@ -163,6 +164,11 @@ export function VoterTab({
       setOtp('');
       if (data.devOtp) {
         setOtpDevHint(data.devOtp);
+      }
+      if (data.emailError) {
+        setOtpEmailError(data.emailError);
+      } else {
+        setOtpEmailError('');
       }
       if (data.emailSent) {
         safeToast('info', 'OTP Sent', data.message || `Verification passcode sent to ${email}.`);
@@ -454,10 +460,10 @@ export function VoterTab({
                     <div className="mt-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1.5">
                       <div className="flex items-center gap-1.5 font-bold text-amber-800">
                         <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-                        <span>Cloud Host Blocked Direct SMTP (Ports 25/465/587 Restricted)</span>
+                        <span>{otpEmailError?.includes("Resend") ? "Resend Delivery Notice" : "Cloud Host Direct SMTP Restricted"}</span>
                       </div>
-                      <p className="text-[11px] text-amber-700 leading-relaxed">
-                        Render Free Tier restricts outbound SMTP connections. A dynamic one-time passcode has been generated for your session below:
+                      <p className="text-[11px] text-amber-800 leading-relaxed break-words bg-amber-100/70 p-2 rounded-lg font-mono text-[10px]">
+                        {otpEmailError || "Render Free Tier restricts outbound SMTP connections. A dynamic one-time passcode has been generated for your session below:"}
                       </p>
                       <div className="flex items-center justify-between pt-1 border-t border-amber-200/80">
                         <span className="text-[11px] font-semibold text-slate-600">Verification Passcode:</span>

@@ -55,13 +55,31 @@ app.get("/public/elections", async (req, res) => {
 });
 
 app.get("/public/email-status", async (req, res) => {
+  const rawKey = process.env.RESEND_API_KEY || "";
+  const cleanKey = String(rawKey).trim().replace(/^["']|["']$/g, '');
+  const isResendConfigured = cleanKey.length > 0;
+  const keyPreview = isResendConfigured ? `${cleanKey.slice(0, 6)}...${cleanKey.slice(-4)}` : null;
+
+  const testTo = req.query.to || "4vishwasj@gmail.com";
   try {
     const { sendOTP } = require("./services/email");
-    const testTo = req.query.to || "4vishwasj@gmail.com";
-    await sendOTP(testTo, "123456");
-    res.json({ ok: true, sentTo: testTo, message: "Email sent successfully!" });
+    const result = await sendOTP(testTo, "123456");
+    res.json({
+      ok: true,
+      sentTo: testTo,
+      provider: result?.provider || "unknown",
+      resendConfigured: isResendConfigured,
+      resendKeyPreview: keyPreview,
+      message: `Email sent successfully to ${testTo}!`
+    });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    res.status(500).json({
+      ok: false,
+      sentTo: testTo,
+      resendConfigured: isResendConfigured,
+      resendKeyPreview: keyPreview,
+      error: err.message
+    });
   }
 });
 
