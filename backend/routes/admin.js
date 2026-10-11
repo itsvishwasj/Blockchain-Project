@@ -42,12 +42,13 @@ async function checkElectionOwnership(req, res, next) {
     if (!rows.length) {
       return res.status(404).json({ error: "Election not found" });
     }
+    // All authenticated administrators have administrative authority
+    if (req.user && req.user.role === "ADMIN") {
+      return next();
+    }
     const creatorId = rows[0].created_by;
-    if (creatorId) {
-      const [userExists] = await pool.query("SELECT id FROM users WHERE id = ?", [creatorId]);
-      if (userExists.length && Number(creatorId) !== Number(req.user.userId)) {
-        return res.status(403).json({ error: "Access denied. You do not have permission to manage this election." });
-      }
+    if (creatorId && Number(creatorId) !== Number(req.user.userId)) {
+      return res.status(403).json({ error: "Access denied. You do not have permission to manage this election." });
     }
     next();
   } catch (err) {
@@ -381,6 +382,67 @@ router.post("/elections/:id/candidate-roll", checkElectionOwnership, upload.sing
     }
 
     res.json({ ok: true, added, skipped });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/elections/:id/preload-candidates", checkElectionOwnership, async (req, res) => {
+  try {
+    const sampleCandidates = [
+      {
+        name: "Udupa",
+        bio: "Former Treasury Director & Policy Lead",
+        manifesto: "Promoting transparent municipal governance through Poseidon zk-SNARKs and real-time public ledger attestation.",
+        stance: { economy: 0.85, environment: 0.70, healthcare: 0.80, education: 0.90, civil_rights: 0.85, security: 0.65 }
+      },
+      {
+        name: "Rohan Sharma",
+        bio: "Environmental Engineer & Urban Sustainability Scholar",
+        manifesto: "Pioneering green energy microgrids and zero-emission municipal infrastructure backed by audited smart contracts.",
+        stance: { economy: 0.50, environment: 0.95, healthcare: 0.75, education: 0.80, civil_rights: 0.70, security: 0.40 }
+      },
+      {
+        name: "Archana Devi",
+        bio: "Civic Tech Researcher & Open Data Advocate",
+        manifesto: "Building decentralized public auditing tools and community-driven participatory budgeting.",
+        stance: { economy: 0.75, environment: 0.85, healthcare: 0.90, education: 0.80, civil_rights: 0.95, security: 0.50 }
+      }
+    ];
+
+    let added = 0;
+    for (let i = 0; i < sampleCandidates.length; i++) {
+      const c = sampleCandidates[i];
+      const [existing] = await pool.query(
+        "SELECT id FROM candidates WHERE election_id = ? AND display_name = ?",
+        [req.params.id, c.name]
+      );
+      if (existing.length) continue;
+
+      const userEmail = `candidate_${Date.now()}_${Math.floor(Math.random()*10000)}_${i}@tri-vote.dev`;
+      const [userRes] = await pool.query(
+        `INSERT INTO users (role, email, password_hash) VALUES ('CANDIDATE', ?, 'hash')`,
+        [userEmail]
+      );
+      const userId = userRes.insertId;
+
+      const [candRes] = await pool.query(
+        `INSERT INTO candidates (user_id, election_id, display_name, bio, public_key, stance_vector, status)
+         VALUES (?, ?, ?, ?, '0x0', ?, 'APPROVED')`,
+        [userId, req.params.id, c.name, c.bio, JSON.stringify(c.stance)]
+      );
+      const candidateId = candRes.insertId;
+
+      const contentHash = ethers.keccak256(ethers.toUtf8Bytes(c.manifesto));
+      await pool.query(
+        `INSERT INTO attested_content (candidate_id, content_type, storage_uri, content_hash, signature, onchain_tx_hash)
+         VALUES (?, 'MANIFESTO', 'inline', ?, '0x', '0x_admin_preapproved')`,
+        [candidateId, contentHash]
+      );
+      added++;
+    }
+
+    res.json({ ok: true, added, count: sampleCandidates.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

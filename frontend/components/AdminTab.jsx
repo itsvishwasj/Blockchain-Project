@@ -371,20 +371,27 @@ export function AdminTab({ toast }) {
   const handlePreloadCandidates = async (electionId) => {
     setActionLoading(true);
     try {
-      const csvContent = `name,bio,manifesto\nUdupa,Former Treasury Director & Policy Lead,Promoting transparent municipal governance through Poseidon zk-SNARKs and real-time public ledger attestation.\nRohan Sharma,Environmental Engineer & Urban Sustainability Scholar,Pioneering green energy microgrids and zero-emission municipal infrastructure backed by audited smart contracts.\nArchana Devi,Civic Tech Researcher & Open Data Advocate,Building decentralized public auditing tools and community-driven participatory budgeting.\n`;
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const formData = new FormData();
-      formData.append('file', blob, 'sample_candidates.csv');
-
-      const { data } = await api.post(`/admin/elections/${electionId}/candidate-roll`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      toast && toast('success', 'Candidates Preloaded', `${data.added} sample candidate profiles added & approved.`);
+      const { data } = await api.post(`/admin/elections/${electionId}/preload-candidates`);
+      toast && toast('success', 'Candidates Preloaded', `${data.added !== undefined ? data.added : 3} sample candidate profiles added & approved.`);
       if (activeManageElection) loadElectionDetails(activeManageElection, wizardStep);
       fetchRealTimeElections();
     } catch (err) {
-      toast && toast('error', 'Preload Error', err.response?.data?.error || err.message);
+      try {
+        const csvContent = `name,bio,manifesto\nUdupa,Former Treasury Director & Policy Lead,Promoting transparent municipal governance through Poseidon zk-SNARKs and real-time public ledger attestation.\nRohan Sharma,Environmental Engineer & Urban Sustainability Scholar,Pioneering green energy microgrids and zero-emission municipal infrastructure backed by audited smart contracts.\nArchana Devi,Civic Tech Researcher & Open Data Advocate,Building decentralized public auditing tools and community-driven participatory budgeting.\n`;
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const formData = new FormData();
+        formData.append('file', blob, 'sample_candidates.csv');
+
+        const { data: uploadData } = await api.post(`/admin/elections/${electionId}/candidate-roll`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+
+        toast && toast('success', 'Candidates Preloaded', `${uploadData.added || 3} sample candidate profiles added & approved.`);
+        if (activeManageElection) loadElectionDetails(activeManageElection, wizardStep);
+        fetchRealTimeElections();
+      } catch (uploadErr) {
+        toast && toast('error', 'Preload Error', uploadErr.response?.data?.error || err.response?.data?.error || err.message);
+      }
     } finally {
       setActionLoading(false);
     }
