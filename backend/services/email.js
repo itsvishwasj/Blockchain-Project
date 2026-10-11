@@ -94,26 +94,29 @@ async function sendViaResend(toEmail, otpCode) {
   return false;
 }
 
+// Send via Google Apps Script Webhook (HTTPS Port 443 — sends directly from Google Cloud without SMTP blocks)
+async function sendViaWebhook(toEmail, otpCode, htmlContent) {
+  const webhookUrl = process.env.EMAIL_WEBHOOK_URL || process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
+  if (!webhookUrl) return false;
+
+  if (typeof fetch === "function") {
+    const res = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: toEmail,
+        subject: "Your E-Voting OTP Verification Code",
+        html: htmlContent,
+        otp: otpCode
+      }),
+      signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined
+    });
+    return res.ok;
+  }
+  return false;
+}
+
 async function sendOTP(toEmail, otpCode) {
-  // 1. Try HTTPS API first if RESEND_API_KEY is configured (works on Render free tier without port blocks)
-  try {
-    if (process.env.RESEND_API_KEY) {
-      const resendSuccess = await sendViaResend(toEmail, otpCode);
-      if (resendSuccess) {
-        console.log(`📧 Voter OTP sent to ${toEmail} via Resend HTTPS API`);
-        return;
-      }
-    }
-  } catch (resendErr) {
-    console.warn("Resend API delivery error:", resendErr.message);
-  }
-
-  // 2. Try SMTP with strict 3-second fail-fast timeout (never hangs)
-  const transporter = getSmtpTransporter();
-  if (!transporter) {
-    throw new Error("SMTP credentials not configured (EMAIL_USER & EMAIL_PASS or SMTP_HOST)");
-  }
-
   const rawUser = process.env.EMAIL_USER || DEFAULT_EMAIL_USER;
   const fromAddress = (process.env.EMAIL_FROM || rawUser || DEFAULT_EMAIL_USER).trim();
 
@@ -141,6 +144,38 @@ async function sendOTP(toEmail, otpCode) {
       </div>
     `
   };
+
+  // 1. Try Google Apps Script Webhook first if configured (HTTPS Port 443 — NEVER blocked on Render)
+  try {
+    if (process.env.EMAIL_WEBHOOK_URL || process.env.GOOGLE_SCRIPT_WEBHOOK_URL) {
+      const webhookSuccess = await sendViaWebhook(toEmail, otpCode, mailOptions.html);
+      if (webhookSuccess) {
+        console.log(`📧 Voter OTP sent to ${toEmail} via HTTPS Google Webhook`);
+        return;
+      }
+    }
+  } catch (webhookErr) {
+    console.warn("Webhook delivery error:", webhookErr.message);
+  }
+
+  // 2. Try Resend HTTPS API if configured (HTTPS Port 443)
+  try {
+    if (process.env.RESEND_API_KEY) {
+      const resendSuccess = await sendViaResend(toEmail, otpCode);
+      if (resendSuccess) {
+        console.log(`📧 Voter OTP sent to ${toEmail} via Resend HTTPS API`);
+        return;
+      }
+    }
+  } catch (resendErr) {
+    console.warn("Resend API delivery error:", resendErr.message);
+  }
+
+  // 3. Try SMTP with strict fail-fast timeout (works locally and on paid cloud instances)
+  const transporter = getSmtpTransporter();
+  if (!transporter) {
+    throw new Error("SMTP credentials not configured (EMAIL_USER & EMAIL_PASS or SMTP_HOST)");
+  }
 
   const timeoutPromise = new Promise((_, reject) =>
     setTimeout(() => reject(new Error("SMTP connection timed out after 15s (Render Free Tier blocks outbound SMTP ports 25, 465, 587; set RESEND_API_KEY for cloud delivery)")), 15000)
