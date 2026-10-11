@@ -24,6 +24,7 @@ import {
   ArrowRight,
   Vote as VoteIcon,
   Check,
+  AlertCircle,
 } from 'lucide-react';
 
 export function VoterTab({
@@ -417,9 +418,18 @@ export function VoterTab({
                     autoFocus
                   />
                   {otpDevHint && (
-                    <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center justify-between">
-                      <span>Server fallback OTP code:</span>
-                      <strong className="font-mono tracking-widest text-amber-950 font-bold">{otpDevHint}</strong>
+                    <div className="mt-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1.5">
+                      <div className="flex items-center gap-1.5 font-bold text-amber-800">
+                        <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                        <span>Email not sent (SMTP not configured on server)</span>
+                      </div>
+                      <p className="text-[11px] text-amber-700 leading-relaxed">
+                        To receive OTPs in your inbox, set <code className="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold">EMAIL_USER</code> and <code className="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold">EMAIL_PASS</code> in your backend environment.
+                      </p>
+                      <div className="flex items-center justify-between pt-1 border-t border-amber-200/80">
+                        <span className="text-[11px] font-semibold text-slate-600">Dev fallback code:</span>
+                        <strong className="font-mono tracking-widest text-amber-950 font-bold bg-amber-100 px-2 py-0.5 rounded">{otpDevHint}</strong>
+                      </div>
                     </div>
                   )}
                   <p className="text-xs text-slate-500 mt-1.5">
