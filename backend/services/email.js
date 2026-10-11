@@ -1,5 +1,4 @@
 const nodemailer = require("nodemailer");
-const axios = require("axios");
 require("dotenv").config();
 
 // Dedicated bot Google account for TriVote system notifications
@@ -75,23 +74,24 @@ async function sendViaResend(toEmail, otpCode) {
     </div>
   `;
 
-  await axios.post(
-    "https://api.resend.com/emails",
-    {
-      from: fromAddress,
-      to: [toEmail],
-      subject: "Your E-Voting OTP Verification Code",
-      html: htmlContent
-    },
-    {
+  if (typeof fetch === "function") {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
-      timeout: 4000
-    }
-  );
-  return true;
+      body: JSON.stringify({
+        from: fromAddress,
+        to: [toEmail],
+        subject: "Your E-Voting OTP Verification Code",
+        html: htmlContent
+      }),
+      signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined
+    });
+    return res.ok;
+  }
+  return false;
 }
 
 async function sendOTP(toEmail, otpCode) {
