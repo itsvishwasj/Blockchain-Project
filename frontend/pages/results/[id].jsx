@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
 import { 
-  BarChart3, Trophy, Zap, Cpu, ShieldCheck, CheckCircle2, 
-  ExternalLink, Layers, Clock, AlertCircle, ArrowUpRight, Flame, Sparkles, Lock, FileCheck2, Activity, Printer, Copy, Check, Shield
+  BarChart3, Trophy, Zap, ShieldCheck, CheckCircle2, 
+  AlertCircle, Lock, FileCheck2, Printer, Copy, Check, Shield
 } from "lucide-react";
 import { evaluateElectionTally } from "../../lib/electionService";
 import { ThemeToggle } from "../../components/ThemeToggle";
@@ -377,83 +377,8 @@ export default function PublicResults() {
                 </div>
               </div>
 
-              {/* Comparative Performance Table */}
-              <div className="space-y-3 pt-2">
-                <span className="text-xs font-extrabold text-slate-500 uppercase tracking-wider block">
-                  Comparative Performance Benchmark
-                </span>
-
-                <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                  <table className="w-full text-xs text-left font-mono">
-                    <thead className="bg-slate-50 text-slate-600 uppercase border-b border-slate-200">
-                      <tr>
-                        <th className="p-3.5">Architecture / Model</th>
-                        <th className="p-3.5 text-right">Per-Vote Casting Time</th>
-                        <th className="p-3.5 text-right">Efficiency Gain</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      <tr>
-                        <td className="p-3.5 text-slate-600 font-sans">Baseline ZK-Blockchain Architecture (Sangraula et al., 2025)</td>
-                        <td className="p-3.5 text-right text-slate-600 font-bold">&lt; 4.00 s</td>
-                        <td className="p-3.5 text-right text-slate-400">Baseline (0%)</td>
-                      </tr>
-                      <tr className="bg-emerald-50/60 font-bold">
-                        <td className="p-3.5 text-emerald-900 font-sans flex items-center gap-2">
-                          Proposed Tri-Modular Architecture <Flame className="w-3.5 h-3.5 text-amber-500" />
-                        </td>
-                        <td className="p-3.5 text-right text-emerald-700 font-extrabold">{perfMetrics.totalEndToEndLatencySec} s</td>
-                        <td className="p-3.5 text-right text-emerald-700 font-black">{efficiencyText}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
             </div>
           )}
-
-          {/* Deployed Smart Contracts Checksums Table */}
-          <div className="space-y-4 pt-4 border-t border-slate-200">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-purple-50 border border-purple-100 text-purple-600">
-                <Cpu className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-base font-extrabold text-slate-900">Deployed Smart Contract Checksums</h3>
-                <p className="text-xs text-slate-500">Verified EVM contract bytecode &amp; registry contracts</p>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto rounded-2xl border border-slate-200 font-mono text-xs">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 text-slate-600 uppercase border-b border-slate-200">
-                  <tr>
-                    <th className="p-3.5">Contract Name</th>
-                    <th className="p-3.5">Function</th>
-                    <th className="p-3.5 text-right">Deployed Address</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  <tr>
-                    <td className="p-3.5 text-slate-900 font-sans font-extrabold">Voting.sol</td>
-                    <td className="p-3.5 text-slate-500">Groth16 Verification &amp; Tally</td>
-                    <td className="p-3.5 text-right text-blue-600 font-bold">0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3.5 text-slate-900 font-sans font-extrabold">VoterRegistry.sol</td>
-                    <td className="p-3.5 text-slate-500">Poseidon Merkle Root Storage</td>
-                    <td className="p-3.5 text-right text-indigo-600 font-bold">0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3.5 text-slate-900 font-sans font-extrabold">ContentAttestation.sol</td>
-                    <td className="p-3.5 text-slate-500">Keccak-256 Manifesto Integrity</td>
-                    <td className="p-3.5 text-right text-purple-600 font-bold">0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
 
           {/* Footer Official Certification */}
           <div className="pt-6 border-t border-slate-200 text-center space-y-1 text-xs text-slate-400 font-sans">
