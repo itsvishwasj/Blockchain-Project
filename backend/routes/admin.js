@@ -122,10 +122,28 @@ router.post("/elections/:id/voter-roll", checkElectionOwnership, upload.single("
 router.get("/elections/:id/voter-roll", checkElectionOwnership, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT full_name, email, voter_id FROM voter_rolls WHERE election_id = ? ORDER BY full_name",
+      "SELECT id, full_name, email, voter_id FROM voter_rolls WHERE election_id = ? ORDER BY id DESC",
       [req.params.id]
     );
     res.json({ roll: rows, total: rows.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete("/elections/:id/voter-roll/:voterRef", checkElectionOwnership, async (req, res) => {
+  try {
+    const voterRef = req.params.voterRef;
+    await pool.query(
+      "DELETE FROM voter_rolls WHERE election_id = ? AND (id = ? OR voter_id = ? OR email = ?)",
+      [req.params.id, voterRef, voterRef, voterRef]
+    );
+    res.json({ ok: true, message: "Voter removed from whitelist." });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete("/elections/:id/voter-roll", checkElectionOwnership, async (req, res) => {
+  try {
+    await pool.query("DELETE FROM voter_rolls WHERE election_id = ?", [req.params.id]);
+    res.json({ ok: true, message: "All voters removed from election roll." });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -499,7 +517,7 @@ router.patch("/candidates/:id/status", async (req, res) => {
     if (!cands.length) return res.status(404).json({ error: "Candidate not found" });
     const candidate = cands[0];
 
-    if (candidate.created_by && Number(candidate.created_by) !== Number(req.user.userId)) {
+    if (req.user && req.user.role !== "ADMIN" && candidate.created_by && Number(candidate.created_by) !== Number(req.user.userId)) {
       return res.status(403).json({ error: "Access denied. You do not have permission to manage candidates for this election." });
     }
 
@@ -544,6 +562,28 @@ router.patch("/candidates/:id/status", async (req, res) => {
     }
 
     res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete("/candidates/:id", async (req, res) => {
+  try {
+    const [cands] = await pool.query(
+      `SELECT c.id, c.election_id, e.created_by
+       FROM candidates c
+       JOIN elections e ON e.id = c.election_id
+       WHERE c.id = ?`,
+      [req.params.id]
+    );
+    if (!cands.length) return res.status(404).json({ error: "Candidate not found" });
+
+    if (req.user && req.user.role !== "ADMIN" && cands[0].created_by && Number(cands[0].created_by) !== Number(req.user.userId)) {
+      return res.status(403).json({ error: "Access denied." });
+    }
+
+    await pool.query("DELETE FROM attested_content WHERE candidate_id = ?", [req.params.id]);
+    await pool.query("DELETE FROM candidates WHERE id = ?", [req.params.id]);
+
+    res.json({ ok: true, message: "Candidate removed successfully." });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

@@ -27,6 +27,7 @@ import {
   Zap,
   ExternalLink,
   Flame,
+  Trash2,
 } from 'lucide-react';
 
 export function AdminTab({ toast }) {
@@ -455,6 +456,53 @@ export function AdminTab({ toast }) {
     }
   };
 
+  const handleDeleteCandidate = async (candidateId, name) => {
+    const confirmDel = window.confirm(`Are you sure you want to permanently remove candidate "${name || 'Candidate'}" from this election?`);
+    if (!confirmDel) return;
+    setActionLoading(true);
+    try {
+      await api.delete(`/admin/candidates/${candidateId}`);
+      toast && toast('success', 'Candidate Removed', `${name || 'Candidate'} removed from election.`);
+      if (activeManageElection) loadElectionDetails(activeManageElection, wizardStep);
+      fetchRealTimeElections();
+    } catch (err) {
+      toast && toast('error', 'Delete Error', err.response?.data?.error || err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteVoter = async (voter) => {
+    const confirmDel = window.confirm(`Are you sure you want to remove voter "${voter.full_name}" (${voter.voter_id}) from the whitelist?`);
+    if (!confirmDel) return;
+    setActionLoading(true);
+    try {
+      const voterRef = voter.id || voter.voter_id;
+      await api.delete(`/admin/elections/${activeManageElection.id}/voter-roll/${voterRef}`);
+      toast && toast('success', 'Voter Deleted', `${voter.full_name} (${voter.voter_id}) removed from whitelist.`);
+      if (activeManageElection) loadElectionDetails(activeManageElection, wizardStep);
+    } catch (err) {
+      toast && toast('error', 'Delete Error', err.response?.data?.error || err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleClearAllVoters = async () => {
+    const confirmClear = window.confirm(`Are you sure you want to delete all ${voterRoll.length} whitelisted voters from this election?`);
+    if (!confirmClear) return;
+    setActionLoading(true);
+    try {
+      await api.delete(`/admin/elections/${activeManageElection.id}/voter-roll`);
+      toast && toast('success', 'Whitelist Cleared', 'All voters removed from election roll.');
+      if (activeManageElection) loadElectionDetails(activeManageElection, wizardStep);
+    } catch (err) {
+      toast && toast('error', 'Clear Error', err.response?.data?.error || err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleGenerateMerkleRoot = async (electionId) => {
     setActionLoading(true);
     try {
@@ -846,20 +894,43 @@ export function AdminTab({ toast }) {
 
                 {/* Voter roll table */}
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-xs font-bold text-slate-700 uppercase">Whitelisted Voters in Database ({voterRoll.length})</h4>
-                    <span className="text-xs text-slate-400 font-mono">ON-CHAIN ELIGIBILITY LIST</span>
+                  <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-bold text-slate-700 uppercase">Whitelisted Voters in Database ({voterRoll.length})</h4>
+                      <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">ON-CHAIN ELIGIBILITY LIST</span>
+                    </div>
+                    {voterRoll.length > 0 && (
+                      <button
+                        onClick={handleClearAllVoters}
+                        disabled={actionLoading}
+                        className="text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer disabled:opacity-50"
+                      >
+                        Clear Whitelist ({voterRoll.length})
+                      </button>
+                    )}
                   </div>
 
                   {voterRoll.length === 0 ? (
                     <p className="text-xs text-slate-400 text-center py-4 italic">No voters whitelisted yet. Upload CSV or load sample list above.</p>
                   ) : (
-                    <div className="max-h-48 overflow-y-auto space-y-2">
+                    <div className="max-h-56 overflow-y-auto space-y-2">
                       {voterRoll.map((v, i) => (
-                        <div key={i} className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200/80 text-xs">
-                          <span className="font-bold text-slate-900">{v.full_name}</span>
-                          <span className="text-slate-500 font-mono">{v.email}</span>
-                          <span className="font-mono text-blue-700 font-bold">{v.voter_id}</span>
+                        <div key={v.id || i} className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200/80 text-xs hover:border-slate-300 transition-colors">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="font-bold text-slate-900 truncate">{v.full_name}</span>
+                            <span className="text-slate-500 font-mono text-[11px] truncate hidden sm:inline">{v.email}</span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="font-mono text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100 text-[11px]">{v.voter_id}</span>
+                            <button
+                              onClick={() => handleDeleteVoter(v)}
+                              disabled={actionLoading}
+                              title={`Delete voter ${v.full_name} from whitelist`}
+                              className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -945,12 +1016,12 @@ export function AdminTab({ toast }) {
                               {cand.rejection_reason}
                             </div>
                           )}
-                          <div className="flex items-center gap-2 pt-1">
+                          <div className="flex items-center gap-2 pt-1 flex-wrap">
                             {!isApproved && (
                               <button
                                 onClick={() => handleApproveCandidate(cand.id)}
                                 disabled={actionLoading}
-                                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 text-xs font-bold transition-all"
+                                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
                               >
                                 <ShieldCheck className="h-3.5 w-3.5" /> Approve & Anchor On-Chain
                               </button>
@@ -959,11 +1030,19 @@ export function AdminTab({ toast }) {
                               <button
                                 onClick={() => handleRejectCandidate(cand.id)}
                                 disabled={actionLoading}
-                                className="flex items-center gap-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 px-3.5 py-1.5 text-xs font-bold transition-all"
+                                className="flex items-center gap-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
                               >
                                 <X className="h-3.5 w-3.5" /> Reject
                               </button>
                             )}
+                            <button
+                              onClick={() => handleDeleteCandidate(cand.id, cand.display_name || cand.displayName || cand.name || cand.email)}
+                              disabled={actionLoading}
+                              className="flex items-center gap-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-600 hover:text-rose-600 px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ml-auto disabled:opacity-50"
+                              title="Delete candidate completely"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" /> Delete
+                            </button>
                           </div>
                         </div>
                       );
