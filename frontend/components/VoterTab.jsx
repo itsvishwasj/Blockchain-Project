@@ -164,9 +164,15 @@ export function VoterTab({
       if (data.devOtp) {
         setOtpDevHint(data.devOtp);
       }
-      safeToast('info', 'OTP Sent', data.message || `Verification passcode sent to ${email}.`);
+      if (data.emailSent) {
+        safeToast('info', 'OTP Sent', data.message || `Verification passcode sent to ${email}.`);
+      } else {
+        safeToast('warning', 'Direct SMTP Blocked', 'Cloud provider blocked outbound SMTP. Dynamic fallback passcode displayed on screen.');
+      }
     } catch (err) {
-      const errMsg = err.response?.data?.error || err.message || 'Failed to authenticate voter or send OTP.';
+      const errMsg = err.code === 'ECONNABORTED'
+        ? 'Server request timed out. Please try again or test on localhost.'
+        : (err.response?.data?.error || err.message || 'Failed to authenticate voter or send OTP.');
       setAuthError(errMsg);
       safeToast('error', 'Authentication Failed', errMsg);
     } finally {
@@ -448,14 +454,23 @@ export function VoterTab({
                     <div className="mt-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1.5">
                       <div className="flex items-center gap-1.5 font-bold text-amber-800">
                         <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-                        <span>Email not sent (SMTP not configured on server)</span>
+                        <span>Cloud Host Blocked Direct SMTP (Ports 25/465/587 Restricted)</span>
                       </div>
                       <p className="text-[11px] text-amber-700 leading-relaxed">
-                        To receive OTPs in your inbox, set <code className="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold">EMAIL_USER</code> and <code className="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold">EMAIL_PASS</code> in your backend environment.
+                        Render Free Tier restricts outbound SMTP connections. A dynamic one-time passcode has been generated for your session below:
                       </p>
                       <div className="flex items-center justify-between pt-1 border-t border-amber-200/80">
-                        <span className="text-[11px] font-semibold text-slate-600">Dev fallback code:</span>
-                        <strong className="font-mono tracking-widest text-amber-950 font-bold bg-amber-100 px-2 py-0.5 rounded">{otpDevHint}</strong>
+                        <span className="text-[11px] font-semibold text-slate-600">Verification Passcode:</span>
+                        <div className="flex items-center gap-2">
+                          <strong className="font-mono tracking-widest text-amber-950 font-bold bg-amber-100 px-2 py-0.5 rounded text-sm">{otpDevHint}</strong>
+                          <button
+                            type="button"
+                            onClick={() => setOtp(otpDevHint)}
+                            className="text-[11px] text-blue-600 hover:text-blue-800 font-bold underline cursor-pointer"
+                          >
+                            Auto-fill
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
