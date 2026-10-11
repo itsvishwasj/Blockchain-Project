@@ -119,26 +119,82 @@ async function sendViaResend(toEmail, otpCode) {
   }
 }
 
-// Send via Google Apps Script Webhook (HTTPS Port 443 — sends directly from Google Cloud without SMTP blocks)
+// Send via Google Apps Script Webhook (HTTPS Port 443 — sends directly from Google Cloud to ANY email, NO domain needed)
 async function sendViaWebhook(toEmail, otpCode, htmlContent) {
-  const webhookUrl = process.env.EMAIL_WEBHOOK_URL || process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
-  if (!webhookUrl) return false;
+  let webhookUrl = process.env.EMAIL_WEBHOOK_URL || process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
+  if (!webhookUrl) return { ok: false, error: "EMAIL_WEBHOOK_URL is not configured" };
+  webhookUrl = String(webhookUrl).trim().replace(/^["']|["']$/g, '');
 
-  if (typeof fetch === "function") {
+  try {
     const res = await fetch(webhookUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({
         to: toEmail,
         subject: "Your E-Voting OTP Verification Code",
         html: htmlContent,
         otp: otpCode
       }),
+      redirect: "follow",
+      signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined
+    });
+
+    const bodyText = await res.text();
+    let bodyJson = null;
+    try { bodyJson = JSON.parse(bodyText); } catch (e) {}
+
+    if (res.ok || res.status === 302 || res.status === 200) {
+      console.log(`📧 Google Webhook delivered OTP to ${toEmail}`);
+      return { ok: true, data: bodyJson || bodyText };
+    } else {
+      return { ok: false, error: `Webhook returned HTTP ${res.status}` };
+    }
+  } catch (err) {
+    console.error(`❌ Google Webhook error for ${toEmail}:`, err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
+// Send via Brevo REST API (HTTPS Port 443 — sends to ANY email, 300 free emails/day, no custom domain required)
+async function sendViaBrevo(toEmail, otpCode, htmlContent) {
+  let apiKey = String(process.env.BREVO_API_KEY || "").trim().replace(/^["']|["']$/g, '');
+  if (!apiKey) return { ok: false, error: "BREVO_API_KEY is not configured" };
+
+  const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || DEFAULT_EMAIL_USER;
+  const senderName = process.env.BREVO_SENDER_NAME || "TriVote System";
+
+  try {
+    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": apiKey,
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({
+        sender: { name: senderName, email: senderEmail },
+        to: [{ email: toEmail }],
+        subject: "Your E-Voting OTP Verification Code",
+        htmlContent: htmlContent
+      }),
       signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined
     });
-    return res.ok;
+
+    const bodyText = await res.text();
+    let bodyJson = null;
+    try { bodyJson = JSON.parse(bodyText); } catch (e) {}
+
+    if (res.ok) {
+      console.log(`📧 Brevo delivered OTP to ${toEmail}:`, bodyJson?.messageId || "OK");
+      return { ok: true, data: bodyJson };
+    } else {
+      const errMsg = bodyJson?.message || bodyText || `HTTP ${res.status}`;
+      console.error(`❌ Brevo rejected email to ${toEmail}:`, errMsg);
+      return { ok: false, error: errMsg };
+    }
+  } catch (err) {
+    return { ok: false, error: err.message };
   }
-  return false;
 }
 
 async function sendOTP(toEmail, otpCode) {
@@ -170,38 +226,44 @@ async function sendOTP(toEmail, otpCode) {
     `
   };
 
-  // 1. Try Google Apps Script Webhook first if configured (HTTPS Port 443 — NEVER blocked on Render)
+  // 1. Google Apps Script Webhook (Sends to ANY email in the world using your own Gmail, NO domain needed)
   if (process.env.EMAIL_WEBHOOK_URL || process.env.GOOGLE_SCRIPT_WEBHOOK_URL) {
-    try {
-      const webhookSuccess = await sendViaWebhook(toEmail, otpCode, mailOptions.html);
-      if (webhookSuccess) {
-        console.log(`📧 Voter OTP sent to ${toEmail} via HTTPS Google Webhook`);
-        return { provider: "webhook" };
-      }
-    } catch (webhookErr) {
-      console.warn("Webhook delivery error:", webhookErr.message);
+    const webhookRes = await sendViaWebhook(toEmail, otpCode, mailOptions.html);
+    if (webhookRes.ok) {
+      console.log(`📧 Voter OTP sent to ${toEmail} via HTTPS Google Webhook`);
+      return { provider: "webhook", data: webhookRes.data };
     }
+    throw new Error(`Google Webhook delivery failed: ${webhookRes.error}`);
   }
 
-  // 2. Try Resend HTTPS API if configured (HTTPS Port 443)
+  // 2. Brevo API (Sends to ANY email in the world, 300 free emails/day)
+  if (process.env.BREVO_API_KEY && process.env.BREVO_API_KEY.trim()) {
+    const brevoRes = await sendViaBrevo(toEmail, otpCode, mailOptions.html);
+    if (brevoRes.ok) {
+      console.log(`📧 Voter OTP sent to ${toEmail} via Brevo REST API`);
+      return { provider: "brevo", data: brevoRes.data };
+    }
+    throw new Error(`Brevo delivery failed: ${brevoRes.error}`);
+  }
+
+  // 3. Resend HTTPS API (Sends to account owner on sandbox, or to anyone once a domain is verified)
   const hasResend = !!(process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim());
   if (hasResend) {
     const resendResult = await sendViaResend(toEmail, otpCode);
     if (resendResult.ok) {
       return { provider: "resend", data: resendResult.data };
     }
-    // Resend was explicitly configured but rejected the email — report the exact error immediately!
     throw new Error(`Resend delivery failed: ${resendResult.error}`);
   }
 
-  // 3. Fall back to SMTP (works locally and on unblocked hosts)
+  // 4. Fall back to SMTP (works locally and on unblocked hosts)
   const transporter = getSmtpTransporter();
   if (!transporter) {
     throw new Error("SMTP credentials not configured (EMAIL_USER & EMAIL_PASS or SMTP_HOST)");
   }
 
   const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error("SMTP connection timed out after 5s (Render Free Tier blocks outbound SMTP ports 25, 465, 587; set RESEND_API_KEY for cloud delivery)")), 5000)
+    setTimeout(() => reject(new Error("SMTP connection timed out after 5s (Render Free Tier blocks outbound SMTP ports 25, 465, 587; set EMAIL_WEBHOOK_URL or BREVO_API_KEY for cloud delivery)")), 5000)
   );
 
   await Promise.race([

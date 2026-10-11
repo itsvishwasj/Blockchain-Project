@@ -55,6 +55,9 @@ app.get("/public/elections", async (req, res) => {
 });
 
 app.get("/public/email-status", async (req, res) => {
+  const isWebhookConfigured = !!(process.env.EMAIL_WEBHOOK_URL || process.env.GOOGLE_SCRIPT_WEBHOOK_URL);
+  const isBrevoConfigured = !!(process.env.BREVO_API_KEY && process.env.BREVO_API_KEY.trim());
+
   const rawKey = process.env.RESEND_API_KEY || "";
   const cleanKey = String(rawKey).trim().replace(/^["']|["']$/g, '');
   const isResendConfigured = cleanKey.length > 0;
@@ -68,6 +71,8 @@ app.get("/public/email-status", async (req, res) => {
       ok: true,
       sentTo: testTo,
       provider: result?.provider || "unknown",
+      webhookConfigured: isWebhookConfigured,
+      brevoConfigured: isBrevoConfigured,
       resendConfigured: isResendConfigured,
       resendKeyPreview: keyPreview,
       message: `Email sent successfully to ${testTo}!`
@@ -76,6 +81,8 @@ app.get("/public/email-status", async (req, res) => {
     res.status(500).json({
       ok: false,
       sentTo: testTo,
+      webhookConfigured: isWebhookConfigured,
+      brevoConfigured: isBrevoConfigured,
       resendConfigured: isResendConfigured,
       resendKeyPreview: keyPreview,
       error: err.message
