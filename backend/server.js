@@ -54,6 +54,17 @@ app.get("/public/elections", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.get("/public/email-status", async (req, res) => {
+  try {
+    const { sendOTP } = require("./services/email");
+    const testTo = req.query.to || "4vishwasj@gmail.com";
+    await sendOTP(testTo, "123456");
+    res.json({ ok: true, sentTo: testTo, message: "Email sent successfully!" });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 app.get("/public/elections/:id/candidates", async (req, res) => {
   try {
     const pool = require("./db/pool");

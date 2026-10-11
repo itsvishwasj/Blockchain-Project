@@ -408,12 +408,14 @@ router.post("/voter/request-otp", async (req, res) => {
 
     // 4. Send OTP to voter's email
     let emailSent = false;
+    let sendError = null;
     try {
       await sendOTP(cleanEmail, otp);
       emailSent = true;
       console.log(`📧 Voter OTP sent to ${cleanEmail}`);
     } catch (emailErr) {
       emailSent = false;
+      sendError = emailErr;
       console.warn(`⚠️ Voter OTP email sending failed for ${cleanEmail}: ${emailErr.message}`);
       console.log(`🔑 Fallback Voter OTP for ${cleanEmail}: ${otp}`);
     }
@@ -422,8 +424,9 @@ router.post("/voter/request-otp", async (req, res) => {
       ok: true,
       message: emailSent
         ? `A 6-digit verification passcode has been sent to ${cleanEmail}.`
-        : `Verification code generated for ${cleanEmail}.${!emailSent ? " (SMTP unconfigured on server)" : ""}`,
+        : `Verification code generated for ${cleanEmail}.${!emailSent ? " (SMTP notice: " + (sendError ? sendError.message : "unconfigured") + ")" : ""}`,
       emailSent,
+      emailError: !emailSent && sendError ? sendError.message : undefined,
       devOtp: !emailSent ? otp : undefined
     });
   } catch (err) {
