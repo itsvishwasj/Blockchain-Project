@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { api } from '@/lib/api';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { api, API_BASE } from '@/lib/api';
 import { simulateKeccak256 } from '@/lib/crypto';
 import { PolicySliders, createEmptyStance } from '@/components/PolicySliders';
 import {
@@ -17,6 +17,10 @@ import {
   Loader2,
   UserCheck,
   Cpu,
+  Upload,
+  ExternalLink,
+  Paperclip,
+  Check,
 } from 'lucide-react';
 
 export function CandidateTab({ onSubmit, registrationLocked, toast }) {
@@ -27,14 +31,20 @@ export function CandidateTab({ onSubmit, registrationLocked, toast }) {
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
   const [manifesto, setManifesto] = useState('');
+  const [manifestoFile, setManifestoFile] = useState(null);
   const [stance, setStance] = useState(createEmptyStance());
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const fileInputRef = useRef(null);
 
   const manifestoHash = useMemo(() => {
+    if (manifestoFile) {
+      return simulateKeccak256(`${manifestoFile.name}:${manifestoFile.size}:${manifesto}`);
+    }
     if (!manifesto.trim()) return '0x' + '0'.repeat(64);
     return simulateKeccak256(manifesto);
-  }, [manifesto]);
+  }, [manifesto, manifestoFile]);
 
   useEffect(() => {
     loadProfileAndElections();
@@ -48,7 +58,7 @@ export function CandidateTab({ onSubmit, registrationLocked, toast }) {
     if (!isBackgroundPoll) setLoading(true);
     try {
       const [electionsRes, profileRes] = await Promise.all([
-        api.get('/public/elections').catch(() => ({ data: { elections: [] } })),
+        api.get('/candidate/elections').catch(() => api.get('/public/elections')).catch(() => ({ data: { elections: [] } })),
         api.get('/candidate/profile').catch(() => ({ data: { candidate: null, candidates: [] } })),
       ]);
 
@@ -117,6 +127,25 @@ export function CandidateTab({ onSubmit, registrationLocked, toast }) {
     setStance(prev => ({ ...prev, [key]: value }));
   };
 
+  const handleProfileFileUpload = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file || !profile?.id) return;
+    setUploadingDoc(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      await api.post(`/candidate/manifesto/${profile.id}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast && toast('success', 'Manifesto Uploaded', 'Manifesto document uploaded and anchored on blockchain!');
+      await loadProfileAndElections();
+    } catch (err) {
+      toast && toast('error', 'Upload Failed', err.response?.data?.error || err.message);
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!selectedElectionId) {
       toast && toast('error', 'Select Election', 'Please select an election to participate in.');
@@ -126,8 +155,8 @@ export function CandidateTab({ onSubmit, registrationLocked, toast }) {
       toast && toast('error', 'Name Required', 'Please enter candidate name.');
       return;
     }
-    if (!manifesto.trim()) {
-      toast && toast('error', 'Manifesto Required', 'Please write your manifesto before submitting.');
+    if (!manifesto.trim() && !manifestoFile) {
+      toast && toast('error', 'Manifesto Required', 'Please write your manifesto or upload a manifesto document.');
       return;
     }
 
@@ -136,7 +165,7 @@ export function CandidateTab({ onSubmit, registrationLocked, toast }) {
       const { data } = await api.post('/candidate/profile', {
         electionId: selectedElectionId,
         displayName: name.trim(),
-        bio: bio.trim() || 'No bio provided.',
+        bio: bio.trim() || (manifestoFile ? `Candidate platform: ${manifestoFile.name}` : 'No bio provided.'),
         publicKey: '0x0',
       });
 
@@ -145,11 +174,23 @@ export function CandidateTab({ onSubmit, registrationLocked, toast }) {
 
       await api.post(`/candidate/stances/${candidateId}`, { stanceVector: stance }).catch(() => {});
 
+      // Upload manifesto document or text
+      const formData = new FormData();
+      if (manifestoFile) {
+        formData.append('file', manifestoFile);
+      }
+      if (manifesto.trim()) {
+        formData.append('manifesto', manifesto.trim());
+      }
+      await api.post(`/candidate/manifesto/${candidateId}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      }).catch(e => console.log('Manifesto upload note:', e.message));
+
       if (onSubmit) {
         onSubmit({
           name: name.trim(),
           bio: bio.trim() || 'No bio provided.',
-          manifesto: manifesto.trim(),
+          manifesto: manifesto.trim() || (manifestoFile ? manifestoFile.name : ''),
           manifestoHash,
           stance,
           electionId: selectedElectionId,
@@ -379,6 +420,51 @@ export function CandidateTab({ onSubmit, registrationLocked, toast }) {
               )}
             </div>
           </div>
+
+          {/* Uploaded Manifesto File Link / Attachment Action */}
+          {profile.manifesto_uri && (
+            <div className="p-4 rounded-2xl bg-blue-50/80 border border-blue-200 flex items-center justify-between flex-wrap gap-2 text-xs">
+              <div className="flex items-center gap-2 text-blue-950 font-bold">
+                <FileText className="h-4 w-4 text-blue-600" />
+                <span>Uploaded Manifesto Document:</span>
+                <span className="font-mono text-slate-600 font-normal truncate max-w-[220px]">{profile.manifesto_uri}</span>
+              </div>
+              <a
+                href={profile.manifesto_uri.startsWith('http') ? profile.manifesto_uri : `${API_BASE}/${profile.manifesto_uri}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs transition-colors"
+              >
+                <ExternalLink className="h-3.5 w-3.5" /> View Uploaded Manifesto File ↗
+              </a>
+            </div>
+          )}
+
+          {!profile.manifesto_tx_hash && (
+            <div className="p-4 rounded-2xl bg-purple-50/60 border border-purple-200 flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <p className="text-xs font-bold text-purple-900">Upload / Replace Manifesto Document</p>
+                <p className="text-[11px] text-slate-500">Attach an official PDF, Word doc, or text file before admin attestation locks</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  id="cand-profile-manifesto-file"
+                  accept=".pdf,.doc,.docx,.txt"
+                  disabled={uploadingDoc}
+                  onChange={handleProfileFileUpload}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="cand-profile-manifesto-file"
+                  className="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors disabled:opacity-50"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  {uploadingDoc ? 'Uploading...' : 'Upload Manifesto Document'}
+                </label>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -454,18 +540,80 @@ export function CandidateTab({ onSubmit, registrationLocked, toast }) {
               </div>
             </div>
 
+            {/* Manifesto File Upload */}
+            <div className="p-4 rounded-2xl bg-purple-50/50 border border-purple-200/80 space-y-2.5">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <label className="text-xs font-bold text-purple-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <Upload className="h-4 w-4 text-purple-600" /> Upload Manifesto Document (PDF / DOC / TXT)
+                </label>
+                <span className="text-[11px] text-purple-700 font-medium">Voters will be able to view &amp; read this file</span>
+              </div>
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".pdf,.doc,.docx,.txt"
+                disabled={registrationLocked}
+                onChange={e => {
+                  const file = e.target.files && e.target.files[0];
+                  if (file) setManifestoFile(file);
+                }}
+                className="hidden"
+              />
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  type="button"
+                  disabled={registrationLocked}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-purple-300 bg-white hover:bg-purple-50 text-purple-700 font-bold text-xs transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                >
+                  <Paperclip className="h-3.5 w-3.5 text-purple-600" />
+                  {manifestoFile ? 'Change Manifesto File' : 'Choose Manifesto File (PDF, DOCX, TXT)'}
+                </button>
+
+                {manifestoFile ? (
+                  <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-1.5 rounded-xl text-xs font-semibold">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                    <span className="truncate max-w-[220px] font-mono">{manifestoFile.name}</span>
+                    <span className="text-[10px] text-emerald-600 font-mono">({Math.round(manifestoFile.size / 1024)} KB)</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setManifestoFile(null);
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                      className="text-rose-500 hover:text-rose-700 ml-1 font-bold cursor-pointer"
+                      title="Remove file"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-xs text-slate-400 italic">No document chosen (You can upload a file or write text below)</span>
+                )}
+              </div>
+            </div>
+
             {/* Manifesto Area */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Policy Manifesto <span className="text-slate-400 font-normal">({manifesto.length} chars)</span> *
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold text-slate-700">
+                  Policy Manifesto Summary {manifestoFile ? '(Optional when file is attached)' : `* (${manifesto.length} chars)`}
+                </label>
+                {manifestoFile && (
+                  <span className="text-[11px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                    File selected: {manifestoFile.name}
+                  </span>
+                )}
+              </div>
               <textarea
                 value={manifesto}
                 disabled={registrationLocked}
                 onChange={e => setManifesto(e.target.value)}
-                rows={4}
+                rows={3}
                 className="w-full rounded-xl bg-white border border-slate-200 px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none transition-all placeholder:text-slate-400 disabled:opacity-50"
-                placeholder="Write your policy manifesto — this will be hashed with Keccak-256 and anchored on-chain..."
+                placeholder={manifestoFile ? "Add an optional short summary of your uploaded manifesto..." : "Write your policy manifesto — this will be hashed with Keccak-256 and anchored on-chain..."}
               />
             </div>
 

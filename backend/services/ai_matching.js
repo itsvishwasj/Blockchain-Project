@@ -68,6 +68,7 @@ function matchCandidates(voterAnswers, candidates) {
       candidateId: candId,
       name: candName,
       bio: c.bio || '',
+      manifesto_uri: c.manifesto_uri || c.manifestoUri || null,
       score,
       rawScore,
       stanceVector: c.stanceVector

@@ -12,14 +12,24 @@ async function verifyManifestoIntegrity(candidateId) {
   if (!rows.length) return { found: false };
   const record = rows[0];
 
+  const path = require("path");
   let currentHash = null;
   let fileExists = false;
-  try {
-    const fileBuffer = fs.readFileSync(record.storage_uri);
-    currentHash = ethers.keccak256(fileBuffer);
-    fileExists = true;
-  } catch {
-    fileExists = false;
+  const candidatePaths = [
+    record.storage_uri,
+    path.join(__dirname, "..", record.storage_uri),
+    path.join(__dirname, "../..", record.storage_uri),
+    path.join(process.cwd(), record.storage_uri)
+  ];
+  for (const p of candidatePaths) {
+    if (p && fs.existsSync(p)) {
+      try {
+        const fileBuffer = fs.readFileSync(p);
+        currentHash = ethers.keccak256(fileBuffer);
+        fileExists = true;
+        break;
+      } catch (e) {}
+    }
   }
 
   const intact = fileExists && currentHash === record.content_hash;

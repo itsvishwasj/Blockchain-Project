@@ -167,11 +167,11 @@ router.post("/elections/:id/close", checkElectionOwnership, async (req, res) => 
 router.get("/elections", async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, title, description, status, start_time, end_time, merkle_root, contract_address, created_by
-       FROM elections
-       WHERE created_by = ? OR created_by IS NULL OR created_by NOT IN (SELECT id FROM users)
-       ORDER BY id DESC`,
-      [req.user.userId]
+      `SELECT e.id, e.title, e.description, e.status, e.start_time, e.end_time, e.merkle_root, e.contract_address, e.created_by,
+              COALESCE(u.email, 'Admin') AS created_by_admin
+       FROM elections e
+       LEFT JOIN users u ON u.id = e.created_by
+       ORDER BY e.id DESC`
     );
     res.json({ elections: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -410,10 +410,14 @@ router.post("/elections/:id/candidate-roll", checkElectionOwnership, upload.sing
 
       if (manifesto) {
         const contentHash = ethers.keccak256(ethers.toUtf8Bytes(manifesto));
+        const filename = `manifesto_${candidateId}_${Date.now()}.txt`;
+        const uploadDir = path.resolve(__dirname, "../uploads");
+        if (!fs.existsSync(uploadDir)) { try { fs.mkdirSync(uploadDir, { recursive: true }); } catch (e) {} }
+        try { fs.writeFileSync(path.join(uploadDir, filename), manifesto, "utf8"); } catch (e) {}
         await pool.query(
           `INSERT INTO attested_content (candidate_id, content_type, storage_uri, content_hash, signature, onchain_tx_hash)
-           VALUES (?, 'MANIFESTO', 'inline', ?, '0x', '0x_admin_preapproved')`,
-          [candidateId, contentHash]
+           VALUES (?, 'MANIFESTO', ?, ?, '0x', '0x_admin_preapproved')`,
+          [candidateId, `uploads/${filename}`, contentHash]
         );
       }
       added++;
@@ -472,10 +476,14 @@ router.post("/elections/:id/preload-candidates", checkElectionOwnership, async (
       const candidateId = candRes.insertId;
 
       const contentHash = ethers.keccak256(ethers.toUtf8Bytes(c.manifesto));
+      const filename = `manifesto_${candidateId}_${Date.now()}.txt`;
+      const uploadDir = path.resolve(__dirname, "../uploads");
+      if (!fs.existsSync(uploadDir)) { try { fs.mkdirSync(uploadDir, { recursive: true }); } catch (e) {} }
+      try { fs.writeFileSync(path.join(uploadDir, filename), c.manifesto, "utf8"); } catch (e) {}
       await pool.query(
         `INSERT INTO attested_content (candidate_id, content_type, storage_uri, content_hash, signature, onchain_tx_hash)
-         VALUES (?, 'MANIFESTO', 'inline', ?, '0x', '0x_admin_preapproved')`,
-        [candidateId, contentHash]
+         VALUES (?, 'MANIFESTO', ?, ?, '0x', '0x_admin_preapproved')`,
+        [candidateId, `uploads/${filename}`, contentHash]
       );
       added++;
     }
@@ -509,10 +517,14 @@ router.post("/elections/:id/candidates", checkElectionOwnership, async (req, res
 
     if (manifesto && manifesto.trim()) {
       const contentHash = ethers.keccak256(ethers.toUtf8Bytes(manifesto));
+      const filename = `manifesto_${candidateId}_${Date.now()}.txt`;
+      const uploadDir = path.resolve(__dirname, "../uploads");
+      if (!fs.existsSync(uploadDir)) { try { fs.mkdirSync(uploadDir, { recursive: true }); } catch (e) {} }
+      try { fs.writeFileSync(path.join(uploadDir, filename), manifesto, "utf8"); } catch (e) {}
       await pool.query(
         `INSERT INTO attested_content (candidate_id, content_type, storage_uri, content_hash, signature, onchain_tx_hash)
-         VALUES (?, 'MANIFESTO', 'inline', ?, '0x', '0x_admin_preapproved')`,
-        [candidateId, contentHash]
+         VALUES (?, 'MANIFESTO', ?, ?, '0x', '0x_admin_preapproved')`,
+        [candidateId, `uploads/${filename}`, contentHash]
       );
     }
 

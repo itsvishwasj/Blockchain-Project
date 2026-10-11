@@ -155,8 +155,7 @@ export default function ElectionPage() {
                   {c.manifesto_uri && (
                     <div className="mt-4 flex items-center gap-3 flex-wrap">
                       <a
-                      
-                        href={API_BASE + "/" + c.manifesto_uri}
+                        href={c.manifesto_uri.startsWith('http') ? c.manifesto_uri : `${API_BASE}/${c.manifesto_uri}`}
                         target="_blank"
                         rel="noreferrer"
                         className="text-cyan-400 text-sm hover:underline"

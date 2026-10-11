@@ -15,8 +15,20 @@ app.use(cors());
 app.use(express.json());
 app.use(performanceMiddleware);
 
-// Serve uploaded manifesto PDFs so they can be viewed in a new browser tab
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// Serve uploaded manifesto files (PDF, DOC, TXT) from backend and root uploads directories
+const fs = require("fs");
+const localUploadsDir = path.join(__dirname, "uploads");
+const rootUploadsDir = path.join(__dirname, "..", "uploads");
+const cwdUploadsDir = path.join(process.cwd(), "uploads");
+[localUploadsDir, rootUploadsDir, cwdUploadsDir].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {}
+  }
+});
+
+app.use("/uploads", express.static(localUploadsDir));
+app.use("/uploads", express.static(rootUploadsDir));
+app.use("/uploads", express.static(cwdUploadsDir));
 
 app.use("/auth", authRoutes);
 app.use("/admin", adminRoutes);
@@ -31,7 +43,12 @@ app.get("/public/elections", async (req, res) => {
   try {
     const pool = require("./db/pool");
     const [rows] = await pool.query(
-      `SELECT id, title, description, status, start_time, end_time FROM elections ORDER BY id DESC`
+      `SELECT e.id, e.title, e.description, e.status, e.start_time, e.end_time, e.contract_address,
+              COALESCE(u.email, 'Admin') AS created_by_admin,
+              (SELECT COUNT(*) FROM candidates c WHERE c.election_id = e.id) AS candidate_count
+       FROM elections e
+       LEFT JOIN users u ON u.id = e.created_by
+       ORDER BY e.id DESC`
     );
     res.json({ elections: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }

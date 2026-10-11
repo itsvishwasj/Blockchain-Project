@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import api from '@/lib/api';
+import { api, API_BASE } from '@/lib/api';
 import { POLICY_LABELS, POLICY_KEYS } from '@/types';
 import { cosineSimilarity, simulatePoseidonCommitment, simulateNullifier, simulateTxHash, formatPercent } from '@/lib/crypto';
 import { PRELOADED_WHITELIST, DEFAULT_LATENCY_METRICS } from '@/lib/data';
@@ -25,6 +25,9 @@ import {
   Vote as VoteIcon,
   Check,
   AlertCircle,
+  FileText,
+  ExternalLink,
+  Users,
 } from 'lucide-react';
 
 export function VoterTab({
@@ -559,9 +562,47 @@ export function VoterTab({
                   ⚠️ Please select an active election from the dropdown above before calculating matches.
                 </p>
               ) : (
-                <p className="text-xs text-indigo-800 font-medium">
-                  Evaluating stance vectors for candidates registered in <strong className="text-indigo-950">{currentElectionObj?.title || `Election #${selectedElectionId}`}</strong>.
-                </p>
+                <div className="space-y-3">
+                  <p className="text-xs text-indigo-800 font-medium">
+                    Evaluating stance vectors for candidates registered in <strong className="text-indigo-950">{currentElectionObj?.title || `Election #${selectedElectionId}`}</strong>.
+                  </p>
+
+                  {/* Registered Candidates Directory & Manifestos */}
+                  {approvedCandidates.length > 0 && (
+                    <div className="p-3.5 rounded-2xl bg-white/90 border border-indigo-200 space-y-2">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <Users className="h-3.5 w-3.5 text-indigo-600" /> Registered Candidates ({approvedCandidates.length}):
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">Click to inspect candidate manifesto documents</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                        {approvedCandidates.map(c => {
+                          const cName = c.display_name || c.name || `Candidate #${c.id}`;
+                          const manifestoLink = c.manifesto_uri ? (c.manifesto_uri.startsWith('http') ? c.manifesto_uri : `${API_BASE}/${c.manifesto_uri}`) : null;
+                          return (
+                            <div key={c.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                              <span className="font-extrabold text-slate-900 block truncate">{cName}</span>
+                              {c.bio && <p className="text-[11px] text-slate-500 line-clamp-1">{c.bio}</p>}
+                              {manifestoLink ? (
+                                <a
+                                  href={manifestoLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md mt-0.5 transition-colors"
+                                >
+                                  <FileText className="h-3 w-3" /> View Manifesto File ↗
+                                </a>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 italic">No document attached</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
@@ -624,38 +665,55 @@ export function VoterTab({
               </div>
 
               <div className="space-y-3">
-                {matchResults.map((result, i) => (
-                  <div key={result.candidate.id} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 hover:bg-slate-50 transition-all">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2.5">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white text-xs font-bold">
-                          #{i + 1}
-                        </span>
-                        <div>
-                          <span className="text-sm font-bold text-slate-900 block">{result.candidate.name}</span>
-                          {result.candidate.bio && (
-                            <span className="text-xs text-slate-500 line-clamp-1">{result.candidate.bio}</span>
-                          )}
+                {matchResults.map((result, i) => {
+                  const manifestoUrl = result.candidate.manifesto_uri
+                    ? (result.candidate.manifesto_uri.startsWith('http') ? result.candidate.manifesto_uri : `${API_BASE}/${result.candidate.manifesto_uri}`)
+                    : null;
+
+                  return (
+                    <div key={result.candidate.id} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 hover:bg-slate-50 transition-all space-y-2.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0 mt-0.5">
+                            #{i + 1}
+                          </span>
+                          <div>
+                            <span className="text-sm font-bold text-slate-900 block">{result.candidate.name}</span>
+                            {result.candidate.bio && (
+                              <span className="text-xs text-slate-500 line-clamp-1">{result.candidate.bio}</span>
+                            )}
+                            {manifestoUrl && (
+                              <a
+                                href={manifestoUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg mt-1.5 transition-colors"
+                                onClick={e => e.stopPropagation()}
+                              >
+                                <FileText className="h-3.5 w-3.5 text-blue-600" /> View Manifesto Document ↗
+                              </a>
+                            )}
+                          </div>
                         </div>
+                        <span className="font-mono text-sm font-extrabold text-blue-700 flex-shrink-0">
+                          {formatPercent(result.score)}
+                        </span>
                       </div>
-                      <span className="font-mono text-sm font-extrabold text-blue-700">
-                        {formatPercent(result.score)}
-                      </span>
+                      <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
+                        <div className="h-full bg-blue-600 rounded-full transition-all duration-500" style={{ width: `${result.score * 100}%` }} />
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedCandidateId(String(result.candidate.id));
+                          setStep(4);
+                        }}
+                        className="w-full bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 font-bold text-xs py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                      >
+                        Select {result.candidate.name} & Cast Vote in Election #{selectedElectionId} →
+                      </button>
                     </div>
-                    <div className="h-2 rounded-full bg-slate-200 overflow-hidden mb-3">
-                      <div className="h-full bg-blue-600 rounded-full transition-all duration-500" style={{ width: `${result.score * 100}%` }} />
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSelectedCandidateId(String(result.candidate.id));
-                        setStep(4);
-                      }}
-                      className="w-full bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 font-bold text-xs py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-2xs"
-                    >
-                      Select {result.candidate.name} & Cast Vote in Election #{selectedElectionId} →
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -701,6 +759,33 @@ export function VoterTab({
                     ))}
                   </select>
                 </div>
+
+                {selectedCandidateId && (
+                  (() => {
+                    const cand = approvedCandidates.find(c => String(c.id) === String(selectedCandidateId));
+                    if (!cand) return null;
+                    const manifestoUrl = cand.manifesto_uri ? (cand.manifesto_uri.startsWith('http') ? cand.manifesto_uri : `${API_BASE}/${cand.manifesto_uri}`) : null;
+                    return (
+                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="font-extrabold text-slate-900">{cand.display_name || cand.name || `Candidate #${cand.id}`}</span>
+                          <span className="text-[10px] font-mono text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-bold">Selected for Vote</span>
+                        </div>
+                        {cand.bio && <p className="text-[11px] text-slate-500">{cand.bio}</p>}
+                        {manifestoUrl && (
+                          <a
+                            href={manifestoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 border border-blue-200 px-3 py-1 rounded-xl transition-colors mt-1 w-fit"
+                          >
+                            <FileText className="h-3.5 w-3.5 text-blue-600" /> Read Candidate's Full Manifesto Document ↗
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })()
+                )}
 
                 {voteReceipt ? (
                   <div className="space-y-3">

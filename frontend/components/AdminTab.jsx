@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api } from '@/lib/api';
+import { api, API_BASE } from '@/lib/api';
 import { evaluateElectionTally } from '@/lib/electionService';
 import {
   Settings2,
@@ -1018,6 +1018,16 @@ export function AdminTab({ toast }) {
                             </span>
                           </div>
                           <p className="text-xs text-slate-600">{cand.bio}</p>
+                          {cand.manifesto_uri && (
+                            <a
+                              href={cand.manifesto_uri.startsWith('http') ? cand.manifesto_uri : `${API_BASE}/${cand.manifesto_uri}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-xl transition-colors w-fit"
+                            >
+                              <ExternalLink className="h-3 w-3" /> View Candidate Manifesto Document ↗
+                            </a>
+                          )}
                           {cand.rejection_reason && (
                             <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-100 text-xs text-rose-800 font-mono">
                               <span className="font-bold block text-[10px] text-rose-900 uppercase">Rejection Reason:</span>
