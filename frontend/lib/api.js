@@ -17,7 +17,7 @@ export function getApiBase() {
 }
 
 const API_BASE = getApiBase();
-const api = axios.create({ baseURL: API_BASE, timeout: 15000 });
+const api = axios.create({ baseURL: API_BASE, timeout: 20000 });
 
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {

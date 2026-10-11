@@ -33,9 +33,9 @@ function getSmtpTransporter() {
       host: "smtp.gmail.com",
       port: 465,
       secure: true,
-      connectionTimeout: 3000,
-      greetingTimeout: 3000,
-      socketTimeout: 3500,
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 15000,
       auth: {
         user,
         pass
@@ -143,7 +143,7 @@ async function sendOTP(toEmail, otpCode) {
   };
 
   const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error("SMTP connection timed out after 3.5s (Render Free Tier blocks outbound SMTP ports 25, 465, 587)")), 3500)
+    setTimeout(() => reject(new Error("SMTP connection timed out after 15s (Render Free Tier blocks outbound SMTP ports 25, 465, 587; set RESEND_API_KEY for cloud delivery)")), 15000)
   );
 
   await Promise.race([
