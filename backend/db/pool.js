@@ -83,7 +83,7 @@ function initSqlite() {
 
         db.run(`CREATE TABLE IF NOT EXISTS candidates (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          user_id INTEGER NOT NULL UNIQUE,
+          user_id INTEGER NOT NULL,
           election_id INTEGER NOT NULL,
           display_name TEXT NOT NULL,
           bio TEXT,
@@ -92,7 +92,8 @@ function initSqlite() {
           stance_tx_hash TEXT NULL,
           manifesto_tx_hash TEXT NULL,
           status TEXT DEFAULT 'PENDING',
-          rejection_reason TEXT NULL
+          rejection_reason TEXT NULL,
+          UNIQUE(user_id, election_id)
         );`);
 
         // Migration check for rejection_reason
