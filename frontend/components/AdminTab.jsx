@@ -65,11 +65,6 @@ export function AdminTab({ toast }) {
   const [newStartTime, setNewStartTime] = useState(() => formatLocalDateTime(new Date()));
   const [newEndTime, setNewEndTime] = useState(() => formatLocalDateTime(new Date(Date.now() + 86400000)));
 
-  // Quick Add Candidate Form state
-  const [quickCandName, setQuickCandName] = useState('');
-  const [quickCandBio, setQuickCandBio] = useState('');
-  const [quickCandManifesto, setQuickCandManifesto] = useState('');
-
   // 1. Authenticate Admin session & load real-time elections list
   async function ensureAdminSession() {
     try {
@@ -401,31 +396,6 @@ export function AdminTab({ toast }) {
       } catch (uploadErr) {
         toast && toast('error', 'Preload Error', uploadErr.response?.data?.error || err.response?.data?.error || err.message);
       }
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleQuickAddCandidate = async (e) => {
-    e.preventDefault();
-    if (!quickCandName.trim()) {
-      toast && toast('error', 'Missing Name', 'Please enter candidate name.');
-      return;
-    }
-    setActionLoading(true);
-    try {
-      await api.post(`/admin/elections/${activeManageElection.id}/candidates`, {
-        name: quickCandName.trim(),
-        bio: quickCandBio.trim() || 'Official Election Candidate',
-        manifesto: quickCandManifesto.trim() || 'Official Candidate Platform & Manifesto',
-      });
-      toast && toast('success', 'Candidate Added', `${quickCandName} added to election candidates.`);
-      setQuickCandName('');
-      setQuickCandBio('');
-      setQuickCandManifesto('');
-      loadElectionDetails(activeManageElection, 2);
-    } catch (err) {
-      toast && toast('error', 'Add Error', err.response?.data?.error || err.message);
     } finally {
       setActionLoading(false);
     }
@@ -996,7 +966,7 @@ export function AdminTab({ toast }) {
                   <div className="p-6 text-center bg-slate-50 rounded-2xl border border-slate-200">
                     <AlertTriangle className="h-6 w-6 text-slate-400 mx-auto mb-2" />
                     <p className="text-xs font-bold text-slate-700">No Candidates Registered Yet</p>
-                    <p className="text-xs text-slate-400 mt-1">Candidates can register via the Candidate Portal, or you can quick-add candidate representatives below.</p>
+                    <p className="text-xs text-slate-400 mt-1">Candidates can register via the Candidate Portal, or you can import a candidate CSV roster or preload sample candidates above.</p>
                   </div>
                 ) : (
                   <div className="space-y-3 max-h-60 overflow-y-auto">
@@ -1067,43 +1037,6 @@ export function AdminTab({ toast }) {
                     })}
                   </div>
                 )}
-
-                {/* Quick Add Candidate Form */}
-                <form onSubmit={handleQuickAddCandidate} className="p-4 rounded-2xl border border-purple-100 bg-purple-50/30 space-y-3">
-                  <h4 className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
-                    <PlusCircle className="h-4 w-4 text-purple-600" /> Quick Add Candidate Representative
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input
-                      type="text"
-                      value={quickCandName}
-                      onChange={e => setQuickCandName(e.target.value)}
-                      placeholder="Candidate Full Name (e.g. Alice Smith)"
-                      className="rounded-xl bg-white border border-slate-200 px-3.5 py-2 text-xs text-slate-900 focus:border-purple-500 focus:outline-none"
-                    />
-                    <input
-                      type="text"
-                      value={quickCandBio}
-                      onChange={e => setQuickCandBio(e.target.value)}
-                      placeholder="Short Bio / Party Affiliation"
-                      className="rounded-xl bg-white border border-slate-200 px-3.5 py-2 text-xs text-slate-900 focus:border-purple-500 focus:outline-none"
-                    />
-                  </div>
-                  <input
-                    type="text"
-                    value={quickCandManifesto}
-                    onChange={e => setQuickCandManifesto(e.target.value)}
-                    placeholder="Candidate Manifesto Platform Summary"
-                    className="w-full rounded-xl bg-white border border-slate-200 px-3.5 py-2 text-xs text-slate-900 focus:border-purple-500 focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    disabled={actionLoading}
-                    className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl px-4 py-2 transition-all disabled:opacity-50"
-                  >
-                    + Add Candidate to Election
-                  </button>
-                </form>
 
                 <div className="flex justify-between pt-2">
                   <button

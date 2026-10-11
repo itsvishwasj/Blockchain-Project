@@ -96,9 +96,10 @@ function initSqlite() {
           UNIQUE(user_id, election_id)
         );`);
 
-        // Migration check for rejection_reason and created_at
+        // Migration check for rejection_reason, created_at, and manifesto_hash
         db.run(`ALTER TABLE candidates ADD COLUMN rejection_reason TEXT NULL;`, (err) => {});
         db.run(`ALTER TABLE candidates ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;`, (err) => {});
+        db.run(`ALTER TABLE candidates ADD COLUMN manifesto_hash TEXT NULL;`, (err) => {});
 
         db.run(`CREATE TABLE IF NOT EXISTS attested_content (
           id INTEGER PRIMARY KEY AUTOINCREMENT,

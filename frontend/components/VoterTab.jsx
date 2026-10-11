@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api, API_BASE } from '@/lib/api';
 import { POLICY_LABELS, POLICY_KEYS } from '@/types';
 import { cosineSimilarity, simulatePoseidonCommitment, simulateNullifier, simulateTxHash, formatPercent } from '@/lib/crypto';
@@ -58,6 +58,7 @@ export function VoterTab({
   const [selectedCandidateId, setSelectedCandidateId] = useState('');
   const [isGeneratingProof, setIsGeneratingProof] = useState(false);
   const [voteReceipt, setVoteReceipt] = useState(null);
+  const matchResultsRef = useRef(null);
   const [localReceiptModal, setLocalReceiptModal] = useState(null);
 
   const [electionsList, setElectionsList] = useState([]);
@@ -277,6 +278,11 @@ export function VoterTab({
         const currentElect = electionsList.find(e => String(e.id) === String(selectedElectionId));
         const title = currentElect ? currentElect.title : `Election #${selectedElectionId}`;
         safeToast('success', 'Match Calculated', `Evaluated ${results.length} candidate matches for ${title}. Top match: ${results[0].candidate.name} (${formatPercent(results[0].score)})`);
+        setTimeout(() => {
+          if (matchResultsRef.current) {
+            matchResultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 150);
       }
     } catch (err) {
       console.error(err);
@@ -681,19 +687,11 @@ export function VoterTab({
               )}
             </button>
 
-            {matchResults.length > 0 && selectedElectionId && (
-              <button
-                onClick={() => setStep(4)}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-2xl py-3.5 text-sm transition-all shadow-sm flex items-center justify-center gap-2 mt-2"
-              >
-                Proceed to Anonymous Voting in Election #{selectedElectionId} →
-              </button>
-            )}
-          </div>
+            </div>
 
           {/* Match Ranking Results */}
           {matchResults.length > 0 && selectedElectionId && (
-            <div className="bg-white rounded-3xl border border-slate-100 p-6 sm:p-8 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.03)] space-y-4">
+            <div ref={matchResultsRef} className="bg-white rounded-3xl border border-slate-100 p-6 sm:p-8 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.03)] space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600">
@@ -751,6 +749,7 @@ export function VoterTab({
                         onClick={() => {
                           setSelectedCandidateId(String(result.candidate.id));
                           setStep(4);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
                         className="w-full bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 font-bold text-xs py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
                       >
@@ -759,6 +758,19 @@ export function VoterTab({
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Proceed to Anonymous Voting Button at End of Page */}
+              <div className="pt-4 border-t border-slate-100">
+                <button
+                  onClick={() => {
+                    setStep(4);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl py-4 text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                >
+                  Proceed to Anonymous Voting in Election #{selectedElectionId} →
+                </button>
               </div>
             </div>
           )}

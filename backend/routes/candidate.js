@@ -64,6 +64,11 @@ router.post("/profile", async (req, res) => {
     );
 
     if (existing.length) {
+      if (existing[0].status === "APPROVED") {
+        return res.status(403).json({
+          error: "Your candidate profile has already been approved by an administrator and cannot be modified."
+        });
+      }
       await pool.query(
         `UPDATE candidates
          SET display_name = ?, bio = ?, public_key = ?, status = 'PENDING', rejection_reason = NULL
@@ -86,7 +91,8 @@ router.get("/profile", async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT c.*, e.title as election_title, e.status as election_status, e.description as election_description,
-              (SELECT storage_uri FROM attested_content ac WHERE ac.candidate_id = c.id AND ac.content_type = 'MANIFESTO' ORDER BY ac.attested_at DESC LIMIT 1) AS manifesto_uri
+              (SELECT storage_uri FROM attested_content ac WHERE ac.candidate_id = c.id AND ac.content_type = 'MANIFESTO' ORDER BY ac.attested_at DESC LIMIT 1) AS manifesto_uri,
+              (SELECT content_hash FROM attested_content ac WHERE ac.candidate_id = c.id AND ac.content_type = 'MANIFESTO' ORDER BY ac.attested_at DESC LIMIT 1) AS manifesto_hash
        FROM candidates c
        JOIN elections e ON e.id = c.election_id
        WHERE c.user_id = ?
@@ -102,7 +108,8 @@ router.get("/profiles", async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT c.*, e.title as election_title, e.status as election_status, e.description as election_description,
-              (SELECT storage_uri FROM attested_content ac WHERE ac.candidate_id = c.id AND ac.content_type = 'MANIFESTO' ORDER BY ac.attested_at DESC LIMIT 1) AS manifesto_uri
+              (SELECT storage_uri FROM attested_content ac WHERE ac.candidate_id = c.id AND ac.content_type = 'MANIFESTO' ORDER BY ac.attested_at DESC LIMIT 1) AS manifesto_uri,
+              (SELECT content_hash FROM attested_content ac WHERE ac.candidate_id = c.id AND ac.content_type = 'MANIFESTO' ORDER BY ac.attested_at DESC LIMIT 1) AS manifesto_hash
        FROM candidates c
        JOIN elections e ON e.id = c.election_id
        WHERE c.user_id = ?
@@ -196,37 +203,25 @@ router.post("/manifesto/:candidateId", upload.single("file"), async (req, res) =
     if (!rows.length) return res.status(404).json({ error: "Candidate profile not found" });
 
     // ── LOCK CHECK ──────────────────────────────────────────
-    // If this candidate already has a manifesto anchored
-    // (manifesto_tx_hash set), reject any further upload.
-    if (rows[0].manifesto_tx_hash) {
+    // If this candidate is already APPROVED, or manifesto is already anchored, reject any replacement.
+    if (rows[0].status === "APPROVED" || rows[0].manifesto_tx_hash) {
       return res.status(403).json({
-        error: "Your manifesto is already anchored on the blockchain and cannot be replaced."
+        error: "Your candidate profile and manifesto have already been approved by the election admin and anchored on the blockchain. The manifesto cannot be changed."
       });
     }
     // ─────────────────────────────────────────────────────────
 
-    let fileBuffer;
-    let storageUri;
-    let contentHash;
-
-    if (req.file) {
-      fileBuffer = fs.readFileSync(req.file.path);
-      contentHash = ethers.keccak256(fileBuffer);
-      storageUri = `uploads/${req.file.filename}`;
-    } else {
-      const text = (req.body.manifesto || req.body.manifestoText || "").trim();
-      if (!text) {
-        return res.status(400).json({ error: "No manifesto file or text provided." });
-      }
-      fileBuffer = Buffer.from(text, "utf8");
-      contentHash = ethers.keccak256(fileBuffer);
-      const filename = `manifesto_${req.params.candidateId}_${Date.now()}.txt`;
-      fs.writeFileSync(path.join(uploadDir, filename), text, "utf8");
-      storageUri = `uploads/${filename}`;
+    if (!req.file) {
+      return res.status(400).json({ error: "Manifesto document file (PDF/DOCX/TXT) is required." });
     }
 
+    const fileBuffer = fs.readFileSync(req.file.path);
+    // Real Keccak-256 cryptographic hash of the exact file binary
+    const contentHash = ethers.keccak256(fileBuffer);
+    const storageUri = `uploads/${req.file.filename}`;
+
     console.log(`📄 Manifesto uploaded by candidate ${req.params.candidateId}`);
-    console.log(`   Content hash: ${contentHash}`);
+    console.log(`   Keccak-256 content hash: ${contentHash}`);
     console.log(`   Storage URI: ${storageUri}`);
 
     // Anchor to blockchain
@@ -249,11 +244,18 @@ router.post("/manifesto/:candidateId", upload.single("file"), async (req, res) =
       [req.params.candidateId, storageUri, contentHash, signature || "", txHash]
     );
 
-    // Update candidate's manifesto tx hash for quick lookup
-    await pool.query(
-      "UPDATE candidates SET manifesto_tx_hash = ? WHERE id = ?",
-      [txHash, req.params.candidateId]
-    );
+    // Update candidate's manifesto tx hash and content hash for quick lookup
+    try {
+      await pool.query(
+        "UPDATE candidates SET manifesto_tx_hash = ?, manifesto_hash = ? WHERE id = ?",
+        [txHash, contentHash, req.params.candidateId]
+      );
+    } catch (e) {
+      await pool.query(
+        "UPDATE candidates SET manifesto_tx_hash = ? WHERE id = ?",
+        [txHash, req.params.candidateId]
+      );
+    }
 
     res.json({
       ok: true,
