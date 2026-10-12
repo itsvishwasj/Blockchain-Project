@@ -824,21 +824,14 @@ export function AdminTab({ toast }) {
 
 
                 <div className="flex items-center gap-3 pt-1 flex-wrap">
-                  <button
-                    onClick={() => loadElectionDetails(el, 3)}
-                    className="flex items-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-xs"
-                  >
-                    <BarChart2 className="h-4 w-4" />
-                    View On-Chain Results & Tally →
-                  </button>
                   <a
                     href={`/results/${el.id}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-slate-900 bg-white border border-slate-200 px-4 py-2.5 rounded-xl transition-all"
+                    className="flex items-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-xs"
                   >
-                    <ExternalLink className="h-3.5 w-3.5 text-slate-500" />
-                    Full Telemetry Report ↗
+                    <BarChart2 className="h-4 w-4" />
+                    Results →
                   </a>
                 </div>
               </div>
