@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import api from "../../lib/api";
 import { generateVoteProof, randomFieldElement } from "../../lib/zkProof";
 import { 
-  Vote, ShieldCheck, Cpu, CheckCircle2, AlertCircle, Sparkles, 
+  Vote, ShieldCheck, Cpu, CheckCircle2, AlertCircle, AlertTriangle, Sparkles, 
   ExternalLink, FileCheck, Layers, Clock, Award
 } from "lucide-react";
 
@@ -23,10 +23,34 @@ export default function VotePage() {
   const [status, setStatus] = useState("");
   const [receipt, setReceipt] = useState(null);
   const [timingMetrics, setTimingMetrics] = useState(null);
+  const [hasAlreadyVoted, setHasAlreadyVoted] = useState(false);
+  const [votedDetails, setVotedDetails] = useState(null);
 
   useEffect(() => {
     loadCandidates();
+    checkVotingStatus();
   }, [electionId]);
+
+  async function checkVotingStatus() {
+    if (typeof window === "undefined" || !electionId) return;
+    const voterId = localStorage.getItem("voterId") || localStorage.getItem("tri_vote_voter_id") || "";
+    const email = localStorage.getItem("userEmail") || localStorage.getItem("tri_vote_user_email") || "";
+    if (!voterId && !email) return;
+    try {
+      const { data } = await api.get(
+        `/public/elections/${electionId}/voting-status?voterId=${encodeURIComponent(voterId)}&email=${encodeURIComponent(email)}`
+      );
+      if (data && data.hasVoted) {
+        setHasAlreadyVoted(true);
+        setVotedDetails(data);
+      } else {
+        setHasAlreadyVoted(false);
+        setVotedDetails(null);
+      }
+    } catch (e) {
+      console.log("Voting status note:", e.message);
+    }
+  }
 
   async function loadCandidates() {
     try {
@@ -40,6 +64,10 @@ export default function VotePage() {
   }
 
   async function handleVote() {
+    if (hasAlreadyVoted) {
+      setStatus(`⚠️ Already Voted: You have already cast your ballot in Election #${electionId}. Double-voting is strictly prohibited.`);
+      return;
+    }
     const timings = {};
     setReceipt(null);
     setTimingMetrics(null);
@@ -143,6 +171,21 @@ export default function VotePage() {
             </p>
           </div>
 
+          {/* Warning Banner if Already Voted */}
+          {hasAlreadyVoted && (
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs space-y-1.5">
+              <div className="flex items-center gap-2 font-bold text-amber-950">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Already Voted in Election #{electionId}</span>
+              </div>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                Records confirm a ballot has already been submitted for your voter credential in this election
+                {votedDetails?.votedAt ? ` on ${new Date(votedDetails.votedAt).toLocaleString()}` : ""}.
+                Under the single-ballot policy, each eligible voter may only cast their ballot once. Double-voting is strictly prohibited.
+              </p>
+            </div>
+          )}
+
           {/* Candidate Choice Selector */}
           <div className="space-y-3">
             <label className="text-xs font-extrabold text-slate-700 block uppercase tracking-wider">
@@ -154,19 +197,22 @@ export default function VotePage() {
                 candidatesList.map((c, index) => (
                   <label
                     key={c.id}
-                    onClick={() => setCandidateChoice(index)}
-                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer ${
-                      candidateChoice === index
-                        ? "bg-blue-50/80 border-blue-500 shadow-xs text-slate-900"
-                        : "bg-slate-50/60 border-slate-200 text-slate-700 hover:border-slate-300"
+                    onClick={() => !hasAlreadyVoted && setCandidateChoice(index)}
+                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                      hasAlreadyVoted
+                        ? "cursor-not-allowed opacity-60 bg-slate-50 border-slate-200"
+                        : candidateChoice === index
+                        ? "bg-blue-50/80 border-blue-500 shadow-xs text-slate-900 cursor-pointer"
+                        : "bg-slate-50/60 border-slate-200 text-slate-700 hover:border-slate-300 cursor-pointer"
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <input
                         type="radio"
                         name="candidate"
+                        disabled={hasAlreadyVoted}
                         checked={candidateChoice === index}
-                        onChange={() => setCandidateChoice(index)}
+                        onChange={() => !hasAlreadyVoted && setCandidateChoice(index)}
                         className="accent-blue-600 w-4 h-4"
                       />
                       <div>
@@ -190,9 +236,23 @@ export default function VotePage() {
           {/* Action Button */}
           <button
             onClick={handleVote}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-2xl py-3.5 transition-all shadow-xs flex items-center justify-center gap-2"
+            disabled={hasAlreadyVoted}
+            className={`w-full font-extrabold text-xs rounded-2xl py-3.5 transition-all shadow-xs flex items-center justify-center gap-2 ${
+              hasAlreadyVoted
+                ? "bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300"
+                : "bg-blue-600 hover:bg-blue-700 text-white"
+            }`}
           >
-            <Vote className="w-4 h-4" /> Generate ZK Proof &amp; Cast Vote On-Chain
+            {hasAlreadyVoted ? (
+              <>
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                Ballot Locked — You Have Already Voted in Election #{electionId}
+              </>
+            ) : (
+              <>
+                <Vote className="w-4 h-4" /> Generate ZK Proof &amp; Cast Vote On-Chain
+              </>
+            )}
           </button>
 
           {/* Status Box */}
