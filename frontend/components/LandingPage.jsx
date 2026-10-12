@@ -109,12 +109,7 @@ export function LandingPage({ onSelectPortal }) {
             <div className="h-14 w-14 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center mb-5 text-amber-600 group-hover:scale-105 transition-transform">
               <BarChart3 className="h-7 w-7" />
             </div>
-            <div className="flex items-center gap-1.5 justify-center mb-2">
-              <h3 className="text-base font-bold text-slate-900">Public Results</h3>
-              <span className="text-[10px] font-mono font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
-                No Sign-in
-              </span>
-            </div>
+            <h3 className="text-base font-bold text-slate-900 mb-2">Public Results</h3>
             <p className="text-xs text-slate-500 leading-relaxed mb-6 flex-1">
               Live election tallies, turnouts, winner certificates, and certified cryptographic audit receipts for past and ongoing elections.
             </p>
