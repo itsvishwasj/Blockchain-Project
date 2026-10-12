@@ -156,8 +156,9 @@ function initSqlite() {
           matched_results TEXT NOT NULL,
           generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           UNIQUE(voter_id, election_id)
-        );`, (schemaErr) => {
+        );`, async (schemaErr) => {
           if (schemaErr) console.error("SQLite Schema Error:", schemaErr);
+          await restoreFromSnapshot(db);
           resolve();
         });
       });
@@ -165,8 +166,91 @@ function initSqlite() {
   });
 }
 
-// Check MySQL availability synchronously on startup
+const snapshotPath = path.join(__dirname, "database_snapshot.json");
+
+function restoreFromSnapshot(db) {
+  return new Promise((resolve) => {
+    if (!fs.existsSync(snapshotPath)) return resolve();
+    db.get("SELECT COUNT(*) as count FROM users", async (err, row) => {
+      if (err || (row && row.count > 0)) return resolve();
+      console.log("🔄 Restoring database records from persistent snapshot...");
+      try {
+        const data = JSON.parse(fs.readFileSync(snapshotPath, "utf-8"));
+        const tables = ["users", "elections", "voter_rolls", "voters", "candidates", "attested_content", "vote_receipts", "election_voter_participations"];
+        for (const t of tables) {
+          const rows = data[t];
+          if (Array.isArray(rows) && rows.length > 0) {
+            for (const r of rows) {
+              const keys = Object.keys(r);
+              const vals = Object.values(r);
+              const placeholders = keys.map(() => "?").join(", ");
+              const sql = `INSERT OR IGNORE INTO ${t} (${keys.join(", ")}) VALUES (${placeholders})`;
+              await new Promise(res => db.run(sql, vals, () => res()));
+            }
+          }
+        }
+        console.log("✅ Database snapshot restored successfully.");
+      } catch (e) {
+        console.warn("Snapshot restore notice:", e.message);
+      }
+      resolve();
+    });
+  });
+}
+
+let saveSnapshotTimeout = null;
+function triggerSnapshotSave() {
+  if (!useSqlite || !sqliteDb) return;
+  if (saveSnapshotTimeout) clearTimeout(saveSnapshotTimeout);
+  saveSnapshotTimeout = setTimeout(async () => {
+    try {
+      const tables = ["users", "elections", "voter_rolls", "voters", "candidates", "attested_content", "vote_receipts", "election_voter_participations"];
+      const dump = {};
+      for (const t of tables) {
+        const rows = await new Promise(res => sqliteDb.all(`SELECT * FROM ${t}`, (err, r) => res(err ? [] : r)));
+        dump[t] = rows;
+      }
+      fs.writeFileSync(snapshotPath, JSON.stringify(dump, null, 2), "utf-8");
+    } catch (e) {
+      console.warn("Snapshot save notice:", e.message);
+    }
+  }, 1000);
+}
+
+// Check Cloud MySQL (DATABASE_URL) or local MySQL availability on startup
 async function setupPool() {
+  const cloudDbUrl = process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.TIDB_URL;
+  if (cloudDbUrl) {
+    try {
+      mysqlPool = mysql.createPool({
+        uri: cloudDbUrl,
+        ssl: { rejectUnauthorized: false },
+        waitForConnections: true,
+        connectionLimit: 10,
+        connectTimeout: 5000
+      });
+      const conn = await mysqlPool.getConnection();
+      conn.release();
+      console.log("✅ DB connected: Using Cloud MySQL instance");
+
+      try {
+        await mysqlPool.query(`CREATE TABLE IF NOT EXISTS election_voter_participations (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          election_id INT NOT NULL,
+          user_id INT NULL,
+          voter_id VARCHAR(255) NULL,
+          email VARCHAR(255) NULL,
+          nullifier_hash VARCHAR(255) NOT NULL,
+          voted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE KEY uq_elect_nullifier (election_id, nullifier_hash)
+        );`);
+      } catch (migErr) {}
+      return;
+    } catch (err) {
+      console.log(`⚠️ Cloud MySQL unavailable (${err.message}). Falling back to SQLite...`);
+    }
+  }
+
   if (process.env.DB_USER && process.env.DB_PASSWORD) {
     try {
       mysqlPool = mysql.createPool({
@@ -199,9 +283,7 @@ async function setupPool() {
         await mysqlPool.query(`ALTER TABLE voter_rolls ADD COLUMN credentials_sent_at TIMESTAMP NULL;`).catch(() => {});
         await mysqlPool.query(`ALTER TABLE voters ADD COLUMN has_voted TINYINT(1) DEFAULT 0;`).catch(() => {});
         await mysqlPool.query(`ALTER TABLE voters ADD COLUMN voted_at TIMESTAMP NULL;`).catch(() => {});
-      } catch (migErr) {
-        // Safe ignore
-      }
+      } catch (migErr) {}
 
       return;
     } catch (err) {
@@ -225,7 +307,6 @@ module.exports = {
       // Transform MySQL SQL syntax quirks to SQLite syntax
       let cleanSql = sql
         .replace(/ON DUPLICATE KEY UPDATE[\s\S]*/i, (match) => {
-          // Simplification for INSERT ON CONFLICT DO UPDATE
           const updates = match.replace(/ON DUPLICATE KEY UPDATE/i, "").trim();
           return `ON CONFLICT DO UPDATE SET ${updates}`;
         })
@@ -244,6 +325,7 @@ module.exports = {
       } else {
         sqliteDb.run(cleanSql, params, function (err) {
           if (err) return reject(err);
+          triggerSnapshotSave();
           resolve([{ insertId: this.lastID, affectedRows: this.changes }, []]);
         });
       }

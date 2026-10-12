@@ -1,0 +1,762 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "role": "ADMIN",
+      "email": "admin@voting.com",
+      "password_hash": "$2a$10$yLwzinmvcwxUBecB9V4syeFDidyxOKpJQo2z5ZxPFtGHoxl3yPBNe",
+      "voter_id": null,
+      "phone_number": null,
+      "phone_verified": 1,
+      "wallet_address": null,
+      "created_at": "2026-10-10 04:39:53"
+    },
+    {
+      "id": 2,
+      "role": "ADMIN",
+      "email": "demo12@gmail.com",
+      "password_hash": "$2a$10$q7ODoBjThCYEAUTr5v2u9eWneuHJI0QzVsfMJvkHkCHbM8GqE.vjq",
+      "voter_id": null,
+      "phone_number": null,
+      "phone_verified": 1,
+      "wallet_address": null,
+      "created_at": "2026-10-10 05:15:47"
+    },
+    {
+      "id": 3,
+      "role": "ADMIN",
+      "email": "admin1@vote.com",
+      "password_hash": "$2a$10$NyzGlVkza/25Rlf1mRCtDuyQAZcATfMBNCVtwRqlPj0VvPx0OkvlS",
+      "voter_id": null,
+      "phone_number": null,
+      "phone_verified": 1,
+      "wallet_address": null,
+      "created_at": "2026-10-10 06:48:59"
+    },
+    {
+      "id": 4,
+      "role": "CANDIDATE",
+      "email": "cand1@test.com",
+      "password_hash": "$2a$10$GmDUf4tK74Lw804.ekhfBuAtAF4Q8.avQx888gVnMoDUJy4SHRcR.",
+      "voter_id": null,
+      "phone_number": null,
+      "phone_verified": 1,
+      "wallet_address": null,
+      "created_at": "2026-10-10 06:50:36"
+    },
+    {
+      "id": 5,
+      "role": "ADMIN",
+      "email": "admin_test_1791623330551@univ.edu",
+      "password_hash": "$2a$10$wN.YbTT43w7zy7TVtCHTZORtGmcuDTdr.tvmq9F2r4XkLXh1lVX0e",
+      "voter_id": null,
+      "phone_number": null,
+      "phone_verified": 1,
+      "wallet_address": null,
+      "created_at": "2026-10-10 09:08:50"
+    },
+    {
+      "id": 6,
+      "role": "CANDIDATE",
+      "email": "cand_test_1791623330551@univ.edu",
+      "password_hash": "$2a$10$vPvGHh862mqF3juGaczqW.tpUwtWmvAssLypzfqb6TZyCihe4lIE6",
+      "voter_id": null,
+      "phone_number": null,
+      "phone_verified": 1,
+      "wallet_address": null,
+      "created_at": "2026-10-10 09:08:51"
+    },
+    {
+      "id": 7,
+      "role": "VOTER",
+      "email": "voter_test_1791623330551@univ.edu",
+      "password_hash": "$2a$10$FCwjikNY2RZZblNniT5MheGgbWrcm303c9JCue/D9uyTQpr/pAPr.",
+      "voter_id": "VOTER-1791623330551",
+      "phone_number": null,
+      "phone_verified": 1,
+      "wallet_address": null,
+      "created_at": "2026-10-10 09:08:51"
+    },
+    {
+      "id": 8,
+      "role": "ADMIN",
+      "email": "admin@vote.com",
+      "password_hash": "$2a$10$a9GeC9RgxOn4K9pjGBnkcOnt3rxv9tCH8pXPUBH1Fa3HCvKgebHV.",
+      "voter_id": null,
+      "phone_number": null,
+      "phone_verified": 1,
+      "wallet_address": null,
+      "created_at": "2026-10-10 09:39:47"
+    },
+    {
+      "id": 9,
+      "role": "CANDIDATE",
+      "email": "candidate_1791687958768_1497_0@tri-vote.dev",
+      "password_hash": "hash",
+      "voter_id": null,
+      "phone_number": null,
+      "phone_verified": 0,
+      "wallet_address": null,
+      "created_at": "2026-10-11 03:05:58"
+    },
+    {
+      "id": 10,
+      "role": "CANDIDATE",
+      "email": "candidate_1791687958794_679_1@tri-vote.dev",
+      "password_hash": "hash",
+      "voter_id": null,
+      "phone_number": null,
+      "phone_verified": 0,
+      "wallet_address": null,
+      "created_at": "2026-10-11 03:05:58"
+    },
+    {
+      "id": 11,
+      "role": "CANDIDATE",
+      "email": "candidate_1791687958811_4542_2@tri-vote.dev",
+      "password_hash": "hash",
+      "voter_id": null,
+      "phone_number": null,
+      "phone_verified": 0,
+      "wallet_address": null,
+      "created_at": "2026-10-11 03:05:58"
+    },
+    {
+      "id": 12,
+      "role": "VOTER",
+      "email": "alice@tri-vote.dev",
+      "password_hash": "NOPASS",
+      "voter_id": "VTR-1001",
+      "phone_number": null,
+      "phone_verified": 1,
+      "wallet_address": null,
+      "created_at": "2026-10-11 05:13:01"
+    },
+    {
+      "id": 13,
+      "role": "VOTER",
+      "email": "majorproject382027@gmail.com",
+      "password_hash": "NOPASS",
+      "voter_id": "VTR-1001",
+      "phone_number": null,
+      "phone_verified": 1,
+      "wallet_address": null,
+      "created_at": "2026-10-11 10:15:06"
+    },
+    {
+      "id": 14,
+      "role": "VOTER",
+      "email": "4vishwasj@gmail.com",
+      "password_hash": "NOPASS",
+      "voter_id": "VOTER-104",
+      "phone_number": null,
+      "phone_verified": 1,
+      "wallet_address": null,
+      "created_at": "2026-10-11 10:42:58"
+    },
+    {
+      "id": 15,
+      "role": "CANDIDATE",
+      "email": "test_1791727248411@test.com",
+      "password_hash": "hash",
+      "voter_id": null,
+      "phone_number": null,
+      "phone_verified": 0,
+      "wallet_address": null,
+      "created_at": "2026-10-11 14:00:48"
+    },
+    {
+      "id": 16,
+      "role": "CANDIDATE",
+      "email": "candidate_1791729597992_2255_0@tri-vote.dev",
+      "password_hash": "hash",
+      "voter_id": null,
+      "phone_number": null,
+      "phone_verified": 0,
+      "wallet_address": null,
+      "created_at": "2026-10-11 14:39:57"
+    },
+    {
+      "id": 17,
+      "role": "CANDIDATE",
+      "email": "candidate_1791729598020_8564_1@tri-vote.dev",
+      "password_hash": "hash",
+      "voter_id": null,
+      "phone_number": null,
+      "phone_verified": 0,
+      "wallet_address": null,
+      "created_at": "2026-10-11 14:39:58"
+    },
+    {
+      "id": 18,
+      "role": "CANDIDATE",
+      "email": "candidate_1791729598042_648_2@tri-vote.dev",
+      "password_hash": "hash",
+      "voter_id": null,
+      "phone_number": null,
+      "phone_verified": 0,
+      "wallet_address": null,
+      "created_at": "2026-10-11 14:39:58"
+    }
+  ],
+  "elections": [
+    {
+      "id": 1,
+      "title": "Fresh 2026 Election",
+      "description": "Fresh test election",
+      "merkle_root": "0x0",
+      "contract_address": "0x0",
+      "start_time": "2026-10-10T10:00",
+      "end_time": "2026-10-10T06:14:55.799Z",
+      "status": "CLOSED",
+      "created_by": 3
+    },
+    {
+      "id": 2,
+      "title": "cm",
+      "description": "voter",
+      "merkle_root": "0x0",
+      "contract_address": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+      "start_time": "2026-10-10T05:16",
+      "end_time": "2026-10-11T05:16",
+      "status": "DRAFT",
+      "created_by": 2
+    },
+    {
+      "id": 3,
+      "title": "e1",
+      "description": "Municipal ZK Election",
+      "merkle_root": "15019797232609675441998260052101280400536945603062888308240081994073687793470",
+      "contract_address": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+      "start_time": "2026-10-10T06:49",
+      "end_time": "2026-10-10T06:53:38.986Z",
+      "status": "CLOSED",
+      "created_by": 3
+    },
+    {
+      "id": 4,
+      "title": "Empty Telemetry Test Election",
+      "description": "Test",
+      "merkle_root": "0x0",
+      "contract_address": "0x0",
+      "start_time": "2026-10-10T12:00",
+      "end_time": "2026-10-11T12:00",
+      "status": "DRAFT",
+      "created_by": 1
+    },
+    {
+      "id": 5,
+      "title": "asdg",
+      "description": "sdg",
+      "merkle_root": "0x0",
+      "contract_address": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+      "start_time": "2026-10-10T07:01",
+      "end_time": "2026-10-11T07:01",
+      "status": "DRAFT",
+      "created_by": 3
+    },
+    {
+      "id": 6,
+      "title": "E2E Senate Election 1791623330551",
+      "description": "Comprehensive E2E Integration Test Election",
+      "merkle_root": "6331401000423026358291629782353603237933267665498208286537849807283925720420",
+      "contract_address": "0x0",
+      "start_time": "2026-10-10T09:07",
+      "end_time": "2026-10-11T09:08",
+      "status": "OPEN",
+      "created_by": 5
+    }
+  ],
+  "voter_rolls": [
+    {
+      "id": 1,
+      "election_id": 2,
+      "voter_id": "VTR-1001",
+      "full_name": "Alice Smith",
+      "email": "alice@tri-vote.dev",
+      "uploaded_at": "2026-10-10 05:16:38",
+      "has_voted": 0,
+      "voted_at": null,
+      "credentials_sent_at": null
+    },
+    {
+      "id": 2,
+      "election_id": 2,
+      "voter_id": "VTR-1002",
+      "full_name": "Bob Jones",
+      "email": "bob@tri-vote.dev",
+      "uploaded_at": "2026-10-10 05:16:38",
+      "has_voted": 0,
+      "voted_at": null,
+      "credentials_sent_at": null
+    },
+    {
+      "id": 3,
+      "election_id": 2,
+      "voter_id": "VTR-1003",
+      "full_name": "Charlie Brown",
+      "email": "charlie@tri-vote.dev",
+      "uploaded_at": "2026-10-10 05:16:38",
+      "has_voted": 0,
+      "voted_at": null,
+      "credentials_sent_at": null
+    },
+    {
+      "id": 4,
+      "election_id": 3,
+      "voter_id": "VTR-1001",
+      "full_name": "Alice Smith",
+      "email": "alice@tri-vote.dev",
+      "uploaded_at": "2026-10-10 06:49:45",
+      "has_voted": 0,
+      "voted_at": null,
+      "credentials_sent_at": null
+    },
+    {
+      "id": 5,
+      "election_id": 3,
+      "voter_id": "VTR-1002",
+      "full_name": "Bob Jones",
+      "email": "bob@tri-vote.dev",
+      "uploaded_at": "2026-10-10 06:49:45",
+      "has_voted": 0,
+      "voted_at": null,
+      "credentials_sent_at": null
+    },
+    {
+      "id": 6,
+      "election_id": 3,
+      "voter_id": "VTR-1003",
+      "full_name": "Charlie Brown",
+      "email": "charlie@tri-vote.dev",
+      "uploaded_at": "2026-10-10 06:49:45",
+      "has_voted": 0,
+      "voted_at": null,
+      "credentials_sent_at": null
+    },
+    {
+      "id": 7,
+      "election_id": 6,
+      "voter_id": "VOTER-1791623330551",
+      "full_name": "Test Voter",
+      "email": "voter_test_1791623330551@univ.edu",
+      "uploaded_at": "2026-10-10 09:08:50",
+      "has_voted": 0,
+      "voted_at": null,
+      "credentials_sent_at": null
+    },
+    {
+      "id": 8,
+      "election_id": 5,
+      "voter_id": "VTR-1001",
+      "full_name": "Alice Smith",
+      "email": "alice@tri-vote.dev",
+      "uploaded_at": "2026-10-10 09:37:08",
+      "has_voted": 0,
+      "voted_at": null,
+      "credentials_sent_at": null
+    },
+    {
+      "id": 9,
+      "election_id": 5,
+      "voter_id": "VTR-1002",
+      "full_name": "Bob Jones",
+      "email": "bob@tri-vote.dev",
+      "uploaded_at": "2026-10-10 09:37:08",
+      "has_voted": 0,
+      "voted_at": null,
+      "credentials_sent_at": null
+    },
+    {
+      "id": 10,
+      "election_id": 5,
+      "voter_id": "VTR-1003",
+      "full_name": "Charlie Brown",
+      "email": "charlie@tri-vote.dev",
+      "uploaded_at": "2026-10-10 09:37:08",
+      "has_voted": 0,
+      "voted_at": null,
+      "credentials_sent_at": null
+    }
+  ],
+  "voters": [
+    {
+      "id": 1,
+      "user_id": 7,
+      "election_id": 6,
+      "identity_commitment": "17610922722311195426938483481431943255028223790571250909270476711880232282197",
+      "merkle_leaf_index": 0,
+      "is_verified": 1,
+      "registered_at": "2026-10-10 09:09:20",
+      "has_voted": 0,
+      "voted_at": null
+    }
+  ],
+  "candidates": [
+    {
+      "id": 1,
+      "user_id": 4,
+      "election_id": 3,
+      "display_name": "a1",
+      "bio": "No bio provided.",
+      "public_key": "0x0",
+      "stance_vector": "{\"economy\":0.5,\"environment\":0.5,\"healthcare\":0.5,\"education\":0.5,\"civilRights\":0.5,\"security\":0.5}",
+      "stance_tx_hash": "0x23b010d2b45929ee08cf81de6657a0f929a86d8e865cdcdff4f5b96ef0422d30",
+      "manifesto_tx_hash": null,
+      "status": "APPROVED",
+      "rejection_reason": null,
+      "manifesto_hash": null
+    },
+    {
+      "id": 2,
+      "user_id": 6,
+      "election_id": 6,
+      "display_name": "Dr. Priya Sharma",
+      "bio": "Advocating for research excellence and AI ethics.",
+      "public_key": "0x829725A812840000000000000000000000000000",
+      "stance_vector": "{\"economy\":0.8,\"environment\":0.9,\"healthcare\":0.7,\"education\":0.95,\"civil_rights\":0.85,\"security\":0.4}",
+      "stance_tx_hash": "0x833f7b260e0143c3185cb86f296950ba1084b8001cae1d70ee04d615d1d50860",
+      "manifesto_tx_hash": "0x833f7b260e0143c3185cb86f296950ba1084b8001cae1d70ee04d615d1d50860",
+      "status": "APPROVED",
+      "rejection_reason": null,
+      "manifesto_hash": null
+    },
+    {
+      "id": 3,
+      "user_id": 9,
+      "election_id": 6,
+      "display_name": "Udupa",
+      "bio": "Former Treasury Director & Policy Lead",
+      "public_key": "0x0",
+      "stance_vector": "{\"economy\":0.85,\"environment\":0.7,\"healthcare\":0.8,\"education\":0.9,\"civil_rights\":0.85,\"security\":0.65}",
+      "stance_tx_hash": null,
+      "manifesto_tx_hash": null,
+      "status": "APPROVED",
+      "rejection_reason": null,
+      "manifesto_hash": null
+    },
+    {
+      "id": 4,
+      "user_id": 10,
+      "election_id": 6,
+      "display_name": "Rohan Sharma",
+      "bio": "Environmental Engineer & Urban Sustainability Scholar",
+      "public_key": "0x0",
+      "stance_vector": "{\"economy\":0.5,\"environment\":0.95,\"healthcare\":0.75,\"education\":0.8,\"civil_rights\":0.7,\"security\":0.4}",
+      "stance_tx_hash": null,
+      "manifesto_tx_hash": null,
+      "status": "APPROVED",
+      "rejection_reason": null,
+      "manifesto_hash": null
+    },
+    {
+      "id": 5,
+      "user_id": 11,
+      "election_id": 6,
+      "display_name": "Archana Devi",
+      "bio": "Civic Tech Researcher & Open Data Advocate",
+      "public_key": "0x0",
+      "stance_vector": "{\"economy\":0.75,\"environment\":0.85,\"healthcare\":0.9,\"education\":0.8,\"civil_rights\":0.95,\"security\":0.5}",
+      "stance_tx_hash": null,
+      "manifesto_tx_hash": null,
+      "status": "APPROVED",
+      "rejection_reason": null,
+      "manifesto_hash": null
+    },
+    {
+      "id": 6,
+      "user_id": 99,
+      "election_id": 6,
+      "display_name": "Dr. Test Candidate",
+      "bio": "Platform bio test",
+      "public_key": "",
+      "stance_vector": null,
+      "stance_tx_hash": null,
+      "manifesto_tx_hash": "0xf9e48a7ddd82380b9de4ccfa8204027c75c709eab14486c015d9f27b22e2ce91",
+      "status": "PENDING",
+      "rejection_reason": null,
+      "manifesto_hash": null
+    },
+    {
+      "id": 8,
+      "user_id": 16,
+      "election_id": 1,
+      "display_name": "Udupa",
+      "bio": "Former Treasury Director & Policy Lead",
+      "public_key": "0x0",
+      "stance_vector": "{\"economy\":0.85,\"environment\":0.7,\"healthcare\":0.8,\"education\":0.9,\"civil_rights\":0.85,\"security\":0.65}",
+      "stance_tx_hash": null,
+      "manifesto_tx_hash": null,
+      "status": "APPROVED",
+      "rejection_reason": null,
+      "manifesto_hash": null
+    },
+    {
+      "id": 9,
+      "user_id": 17,
+      "election_id": 1,
+      "display_name": "Rohan Sharma",
+      "bio": "Environmental Engineer & Urban Sustainability Scholar",
+      "public_key": "0x0",
+      "stance_vector": "{\"economy\":0.5,\"environment\":0.95,\"healthcare\":0.75,\"education\":0.8,\"civil_rights\":0.7,\"security\":0.4}",
+      "stance_tx_hash": null,
+      "manifesto_tx_hash": null,
+      "status": "APPROVED",
+      "rejection_reason": null,
+      "manifesto_hash": null
+    },
+    {
+      "id": 10,
+      "user_id": 18,
+      "election_id": 1,
+      "display_name": "Archana Devi",
+      "bio": "Civic Tech Researcher & Open Data Advocate",
+      "public_key": "0x0",
+      "stance_vector": "{\"economy\":0.75,\"environment\":0.85,\"healthcare\":0.9,\"education\":0.8,\"civil_rights\":0.95,\"security\":0.5}",
+      "stance_tx_hash": null,
+      "manifesto_tx_hash": null,
+      "status": "APPROVED",
+      "rejection_reason": null,
+      "manifesto_hash": null
+    }
+  ],
+  "attested_content": [
+    {
+      "id": 1,
+      "candidate_id": 2,
+      "content_type": "MANIFESTO",
+      "storage_uri": "uploads/1791623331183-863160310.pdf",
+      "content_hash": "0x88b2d86bbad3bd2147edf7662e796bdbda4a090c3770756bae5d6aa4b3b5e243",
+      "signature": "0x00",
+      "onchain_tx_hash": "0xa9b525676eef98b43afe5ca94c06456e1c4d90000ec68e39ff2a0a6f411dfcb9",
+      "attested_at": "2026-10-10 09:08:51"
+    },
+    {
+      "id": 2,
+      "candidate_id": 3,
+      "content_type": "MANIFESTO",
+      "storage_uri": "inline",
+      "content_hash": "0x070a5f1757d4bf0ee19c2a2e1cb09a9f30682b041e691cbd5ecddcfa04dfe0b9",
+      "signature": "0x",
+      "onchain_tx_hash": "0x_admin_preapproved",
+      "attested_at": "2026-10-11 03:05:58"
+    },
+    {
+      "id": 3,
+      "candidate_id": 4,
+      "content_type": "MANIFESTO",
+      "storage_uri": "inline",
+      "content_hash": "0xad5bcf65d84f5ec86584f7fe9b24be5a934cd12d7cc8cd7af187e8f6cefab8a7",
+      "signature": "0x",
+      "onchain_tx_hash": "0x_admin_preapproved",
+      "attested_at": "2026-10-11 03:05:58"
+    },
+    {
+      "id": 4,
+      "candidate_id": 5,
+      "content_type": "MANIFESTO",
+      "storage_uri": "inline",
+      "content_hash": "0xad8b3bdeae40f6713e985251df1c1a3055b46b8d4ddd978cb2ee762d245d2d97",
+      "signature": "0x",
+      "onchain_tx_hash": "0x_admin_preapproved",
+      "attested_at": "2026-10-11 03:05:58"
+    },
+    {
+      "id": 5,
+      "candidate_id": 6,
+      "content_type": "MANIFESTO",
+      "storage_uri": "uploads/1791712376569-213203955.txt",
+      "content_hash": "0xf67e757eccba4918b37120fdfb25aca7c2166827c1885135717b65526130a40b",
+      "signature": "",
+      "onchain_tx_hash": "0xf9e48a7ddd82380b9de4ccfa8204027c75c709eab14486c015d9f27b22e2ce91",
+      "attested_at": "2026-10-11 09:52:56"
+    },
+    {
+      "id": 6,
+      "candidate_id": 8,
+      "content_type": "MANIFESTO",
+      "storage_uri": "uploads/manifesto_8_1791729598012.txt",
+      "content_hash": "0x070a5f1757d4bf0ee19c2a2e1cb09a9f30682b041e691cbd5ecddcfa04dfe0b9",
+      "signature": "0x",
+      "onchain_tx_hash": "0x_admin_preapproved",
+      "attested_at": "2026-10-11 14:39:58"
+    },
+    {
+      "id": 7,
+      "candidate_id": 9,
+      "content_type": "MANIFESTO",
+      "storage_uri": "uploads/manifesto_9_1791729598032.txt",
+      "content_hash": "0xad5bcf65d84f5ec86584f7fe9b24be5a934cd12d7cc8cd7af187e8f6cefab8a7",
+      "signature": "0x",
+      "onchain_tx_hash": "0x_admin_preapproved",
+      "attested_at": "2026-10-11 14:39:58"
+    },
+    {
+      "id": 8,
+      "candidate_id": 10,
+      "content_type": "MANIFESTO",
+      "storage_uri": "uploads/manifesto_10_1791729598056.txt",
+      "content_hash": "0xad8b3bdeae40f6713e985251df1c1a3055b46b8d4ddd978cb2ee762d245d2d97",
+      "signature": "0x",
+      "onchain_tx_hash": "0x_admin_preapproved",
+      "attested_at": "2026-10-11 14:39:58"
+    }
+  ],
+  "vote_receipts": [
+    {
+      "id": 1,
+      "election_id": 1,
+      "nullifier_hash": "0xf0757d993e461",
+      "tx_hash": "0x9c8516ca3dfa2414fe4cdda9678ed20a07caa62e7467bdc42c846a8ff4b219bd",
+      "block_number": 1,
+      "merkle_proof_fetch_ms": 45,
+      "zk_proof_gen_ms": 640,
+      "blockchain_confirm_ms": 240,
+      "total_latency_ms": 925,
+      "cast_at": "2026-10-10 05:56:59",
+      "candidate_id": 1
+    },
+    {
+      "id": 2,
+      "election_id": 1,
+      "nullifier_hash": "0xae1a21b7962ba",
+      "tx_hash": "0xc56e001b38c3de246d2b31815bd0cd238d9ab4de7f1a1b730c31c82c81b5039e",
+      "block_number": 1,
+      "merkle_proof_fetch_ms": 42,
+      "zk_proof_gen_ms": 620,
+      "blockchain_confirm_ms": 240,
+      "total_latency_ms": 902,
+      "cast_at": "2026-10-10 06:10:54",
+      "candidate_id": 1
+    },
+    {
+      "id": 3,
+      "election_id": 3,
+      "nullifier_hash": "0xc93f5b03d934cfb79411aefa9d888d3b28f65c0a1a7dcbe843269ed8ba794502",
+      "tx_hash": "0x3b63b4ac347b451613e3c759fbd6747460fb9b37c9246adbef9534c3ad848236",
+      "block_number": 1,
+      "merkle_proof_fetch_ms": 120,
+      "zk_proof_gen_ms": 680,
+      "blockchain_confirm_ms": 240,
+      "total_latency_ms": 1040,
+      "cast_at": "2026-10-10 06:53:10",
+      "candidate_id": 1
+    },
+    {
+      "id": 4,
+      "election_id": 6,
+      "nullifier_hash": "0xc93f5b03d934cfb79411aefa9d888d3b28f65c0a1a7dcbe843269ed8ba794502",
+      "tx_hash": "0x6a5e13503d99d0f21eefb4525058790c8aef6551396f3d900668d37b1ab7e37b",
+      "block_number": 1,
+      "merkle_proof_fetch_ms": 120,
+      "zk_proof_gen_ms": 680,
+      "blockchain_confirm_ms": 240,
+      "total_latency_ms": 1040,
+      "cast_at": "2026-10-10 09:36:32",
+      "candidate_id": 2
+    }
+  ],
+  "election_voter_participations": [],
+  "otp_verifications": [
+    {
+      "id": 1,
+      "user_id": 7,
+      "email": null,
+      "otp_code": "140962",
+      "purpose": "PHONE_VERIFY",
+      "expires_at": 1791623931661,
+      "used": 1,
+      "created_at": "2026-10-10 09:08:51"
+    },
+    {
+      "id": 2,
+      "user_id": 7,
+      "email": null,
+      "otp_code": "122479",
+      "purpose": "LOGIN_2FA",
+      "expires_at": 1791623937751,
+      "used": 1,
+      "created_at": "2026-10-10 09:08:57"
+    },
+    {
+      "id": 3,
+      "user_id": 12,
+      "email": "alice@tri-vote.dev",
+      "otp_code": "936680",
+      "purpose": "VOTER_PORTAL_OTP",
+      "expires_at": 1791696181090,
+      "used": 1,
+      "created_at": "2026-10-11 05:13:01"
+    },
+    {
+      "id": 4,
+      "user_id": 13,
+      "email": "majorproject382027@gmail.com",
+      "otp_code": "721164",
+      "purpose": "VOTER_PORTAL_OTP",
+      "expires_at": 1791714306597,
+      "used": 0,
+      "created_at": "2026-10-11 10:15:06"
+    },
+    {
+      "id": 5,
+      "user_id": 14,
+      "email": "4vishwasj@gmail.com",
+      "otp_code": "640266",
+      "purpose": "VOTER_PORTAL_OTP",
+      "expires_at": 1791715978264,
+      "used": 1,
+      "created_at": "2026-10-11 10:42:58"
+    },
+    {
+      "id": 6,
+      "user_id": 14,
+      "email": "4vishwasj@gmail.com",
+      "otp_code": "470697",
+      "purpose": "VOTER_PORTAL_OTP",
+      "expires_at": 1791716863751,
+      "used": 1,
+      "created_at": "2026-10-11 10:57:43"
+    },
+    {
+      "id": 7,
+      "user_id": 14,
+      "email": "4vishwasj@gmail.com",
+      "otp_code": "383278",
+      "purpose": "VOTER_PORTAL_OTP",
+      "expires_at": 1791719997513,
+      "used": 1,
+      "created_at": "2026-10-11 11:49:57"
+    },
+    {
+      "id": 8,
+      "user_id": 14,
+      "email": "4vishwasj@gmail.com",
+      "otp_code": "354938",
+      "purpose": "VOTER_PORTAL_OTP",
+      "expires_at": 1791721449391,
+      "used": 1,
+      "created_at": "2026-10-11 12:14:09"
+    },
+    {
+      "id": 9,
+      "user_id": 14,
+      "email": "4vishwasj@gmail.com",
+      "otp_code": "302714",
+      "purpose": "VOTER_PORTAL_OTP",
+      "expires_at": 1791724217935,
+      "used": 1,
+      "created_at": "2026-10-11 13:00:17"
+    },
+    {
+      "id": 10,
+      "user_id": 14,
+      "email": "4vishwasj@gmail.com",
+      "otp_code": "155576",
+      "purpose": "VOTER_PORTAL_OTP",
+      "expires_at": 1791724388142,
+      "used": 0,
+      "created_at": "2026-10-11 13:03:08"
+    }
+  ]
+}

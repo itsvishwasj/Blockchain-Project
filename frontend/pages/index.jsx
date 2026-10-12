@@ -133,6 +133,10 @@ export default function Home() {
 
   // Handlers
   const handleSelectPortal = (role) => {
+    if (role === 'results') {
+      window.location.href = '/results';
+      return;
+    }
     if (role === 'voter' && typeof window !== 'undefined') {
       window.location.href = '/voter';
       return;

@@ -535,16 +535,29 @@ export function AdminTab({ toast }) {
     }
   };
 
-  const handleGenerateMerkleRoot = async (electionId) => {
+  const handlePublishMerkleRoot = async (electionId) => {
     setActionLoading(true);
     try {
       const { data } = await api.post(`/admin/elections/${electionId}/voter-root`);
-      await api.post(`/admin/elections/${electionId}/lock-voter-root`);
-      toast && toast('success', 'Merkle Root Locked', `Poseidon root ${data.root ? data.root.slice(0, 10) + '...' : ''} locked on-chain.`);
-      fetchRealTimeElections();
-      if (activeManageElection) loadElectionDetails(activeManageElection, wizardStep);
+      toast && toast('success', 'Merkle Root Published', `Poseidon root ${data.root ? data.root.slice(0, 10) + '...' : ''} calculated & saved (${data.voterCount || 0} voter commitments).`);
+      await fetchRealTimeElections();
+      if (activeManageElection) await loadElectionDetails(activeManageElection, wizardStep);
     } catch (err) {
-      toast && toast('error', 'Merkle Root Error', err.response?.data?.error || err.message);
+      toast && toast('error', 'Publish Merkle Root Error', err.response?.data?.error || err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleLockMerkleRoot = async (electionId) => {
+    setActionLoading(true);
+    try {
+      const { data } = await api.post(`/admin/elections/${electionId}/lock-voter-root`);
+      toast && toast('success', 'Merkle Root Locked', data.message || 'Poseidon Merkle root locked on-chain.');
+      await fetchRealTimeElections();
+      if (activeManageElection) await loadElectionDetails(activeManageElection, wizardStep);
+    } catch (err) {
+      toast && toast('error', 'Lock Merkle Root Error', err.response?.data?.error || err.message);
     } finally {
       setActionLoading(false);
     }
@@ -1167,37 +1180,77 @@ export function AdminTab({ toast }) {
 
                 <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
                   <div className="flex flex-wrap items-center gap-3">
+                    {/* Button 1: Publish Merkle Root */}
                     <button
-                      onClick={() => handleGenerateMerkleRoot(activeManageElection.id)}
+                      onClick={() => handlePublishMerkleRoot(activeManageElection.id)}
                       disabled={actionLoading}
-                      className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-xs"
+                      className="flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                      title="Convert all voter commitments into one Poseidon Merkle root and anchor to blockchain"
                     >
-                      <Lock className="h-4 w-4" />
-                      Lock Poseidon Merkle Root On-Chain
+                      <TreePine className="h-4 w-4" />
+                      1. Publish Merkle Root
                     </button>
 
+                    {/* Button 2: Lock Merkle Root On-Chain */}
+                    <button
+                      onClick={() => handleLockMerkleRoot(activeManageElection.id)}
+                      disabled={actionLoading}
+                      className="flex items-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                      title="Lock the Poseidon Merkle root on-chain to freeze voter registration"
+                    >
+                      <Lock className="h-4 w-4" />
+                      2. Lock Merkle Root On-Chain
+                    </button>
+
+                    {/* Button 3: Open Blockchain Voting */}
                     <button
                       onClick={() => handleOpenVoting(activeManageElection.id)}
                       disabled={actionLoading}
-                      className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-xs"
+                      className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                      title="Initialize smart contract voting state machine to OPEN so voters can cast ballots"
                     >
                       <Vote className="h-4 w-4" />
-                      Open On-Chain Blockchain Voting
+                      3. Open On-Chain Blockchain Voting
                     </button>
 
+                    {/* Button 4: Manually End Election */}
                     <button
                       onClick={() => handleCloseElection(activeManageElection.id)}
                       disabled={actionLoading}
-                      className="flex items-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-xs"
+                      className="flex items-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50 ml-auto"
                     >
                       <Lock className="h-4 w-4" />
-                      Manually End Election
+                      End Election
                     </button>
+                  </div>
+
+                  {/* Status Badges */}
+                  <div className="flex items-center gap-3 pt-2 border-t border-slate-200/60 flex-wrap text-xs">
+                    <span className="text-slate-600 font-semibold">Status:</span>
+                    <span className={`px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
+                      activeManageElection?.status === 'OPEN'
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        : activeManageElection?.status === 'REGISTRATION_LOCKED'
+                        ? 'bg-purple-100 text-purple-800 border border-purple-300'
+                        : 'bg-slate-100 text-slate-700 border border-slate-200'
+                    }`}>
+                      {activeManageElection?.status || 'DRAFT'}
+                    </span>
+
+                    <span className="text-slate-400">|</span>
+                    <span className="text-slate-600 font-semibold">Whitelisted Voters:</span>
+                    <span className="font-mono text-blue-700 font-bold">{voterRoll.length}</span>
+
+                    <span className="text-slate-400">|</span>
+                    <span className="text-slate-600 font-semibold">Approved Candidates:</span>
+                    <span className="font-mono text-purple-700 font-bold">
+                      {candidates.filter(c => c.status === 'APPROVED' || c.status === 'approved').length}
+                    </span>
                   </div>
 
                   {activeManageElection?.merkle_root && activeManageElection.merkle_root !== '0x0' && (
                     <div className="p-3 rounded-xl bg-white border border-emerald-200 text-xs font-mono">
-                      <span className="text-emerald-700 font-bold block mb-0.5">✅ Merkle Root Anchored On-Chain:</span>
+                      <span className="text-emerald-700 font-bold block mb-0.5">✅ Poseidon Merkle Root Anchored On-Chain:</span>
                       <span className="text-slate-700 break-all">{activeManageElection.merkle_root}</span>
                     </div>
                   )}

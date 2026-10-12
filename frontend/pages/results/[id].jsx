@@ -82,9 +82,18 @@ export default function PublicResults() {
 
         {/* Top Action Bar (Print / Export) */}
         <div className="flex items-center justify-between bg-white rounded-2xl p-4 border border-slate-200 shadow-xs print:hidden">
-          <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-blue-600" />
-            <span className="text-xs font-extrabold text-slate-800 tracking-wide uppercase">TriVote Official Audit Document</span>
+          <div className="flex items-center gap-3">
+            <a
+              href="/results"
+              className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+            >
+              ← All Election Results
+            </a>
+            <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+            <div className="hidden sm:flex items-center gap-2">
+              <Shield className="h-5 w-5 text-blue-600" />
+              <span className="text-xs font-extrabold text-slate-800 tracking-wide uppercase">TriVote Official Audit Document</span>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <ThemeToggle />

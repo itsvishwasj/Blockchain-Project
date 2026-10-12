@@ -26,9 +26,15 @@ const cwdUploadsDir = path.join(process.cwd(), "uploads");
   }
 });
 
-app.use("/uploads", express.static(localUploadsDir));
-app.use("/uploads", express.static(rootUploadsDir));
-app.use("/uploads", express.static(cwdUploadsDir));
+const staticUploadOpts = {
+  setHeaders: (res, filePath) => {
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+  }
+};
+app.use("/uploads", express.static(localUploadsDir, staticUploadOpts));
+app.use("/uploads", express.static(rootUploadsDir, staticUploadOpts));
+app.use("/uploads", express.static(cwdUploadsDir, staticUploadOpts));
 
 app.use("/auth", authRoutes);
 app.use("/admin", adminRoutes);
@@ -43,9 +49,10 @@ app.get("/public/elections", async (req, res) => {
   try {
     const pool = require("./db/pool");
     const [rows] = await pool.query(
-      `SELECT e.id, e.title, e.description, e.status, e.start_time, e.end_time, e.contract_address,
+      `SELECT e.id, e.title, e.description, e.status, e.start_time, e.end_time, e.merkle_root, e.contract_address,
               COALESCE(u.email, 'Admin') AS created_by_admin,
-              (SELECT COUNT(*) FROM candidates c WHERE c.election_id = e.id) AS candidate_count
+              (SELECT COUNT(*) FROM candidates c WHERE c.election_id = e.id) AS candidate_count,
+              (SELECT COUNT(*) FROM vote_receipts vr WHERE vr.election_id = e.id) AS total_votes
        FROM elections e
        LEFT JOIN users u ON u.id = e.created_by
        ORDER BY e.id DESC`

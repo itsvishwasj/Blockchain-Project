@@ -1,4 +1,4 @@
-import { ShieldCheck, FileText, Vote as VoteIcon, Sparkles } from 'lucide-react';
+import { ShieldCheck, FileText, Vote as VoteIcon, Sparkles, BarChart3 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 export function LandingPage({ onSelectPortal }) {
@@ -48,17 +48,17 @@ export function LandingPage({ onSelectPortal }) {
           Voters generate Poseidon identity commitments, verify policy stance similarity, and cast anonymous ZK votes on-chain without revealing identity.
         </p>
 
-        {/* Portals Cards Grid matching reference image cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
+        {/* Portals Cards Grid matching reference image cards (4 Portals: Admin, Candidate, Voter, Results) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-6xl">
           {/* Admin Portal Card */}
           <div
             onClick={() => onSelectPortal('admin')}
-            className="group cursor-pointer bg-white rounded-3xl p-8 border border-slate-100 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_30px_-4px_rgba(37,99,235,0.12)] transition-all duration-300 flex flex-col items-center text-center hover:-translate-y-1"
+            className="group cursor-pointer bg-white rounded-3xl p-7 border border-slate-100 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_30px_-4px_rgba(37,99,235,0.12)] transition-all duration-300 flex flex-col items-center text-center hover:-translate-y-1"
           >
-            <div className="h-14 w-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-6 text-indigo-600 group-hover:scale-105 transition-transform">
+            <div className="h-14 w-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-5 text-indigo-600 group-hover:scale-105 transition-transform">
               <ShieldCheck className="h-7 w-7" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Admin Dashboard</h3>
+            <h3 className="text-base font-bold text-slate-900 mb-2">Admin Dashboard</h3>
             <p className="text-xs text-slate-500 leading-relaxed mb-6 flex-1">
               Election control — lock Poseidon Merkle roots, attest candidate manifestos, and open blockchain voting.
             </p>
@@ -70,12 +70,12 @@ export function LandingPage({ onSelectPortal }) {
           {/* Candidate Portal Card */}
           <div
             onClick={() => onSelectPortal('candidate')}
-            className="group cursor-pointer bg-white rounded-3xl p-8 border border-slate-100 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_30px_-4px_rgba(37,99,235,0.12)] transition-all duration-300 flex flex-col items-center text-center hover:-translate-y-1"
+            className="group cursor-pointer bg-white rounded-3xl p-7 border border-slate-100 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_30px_-4px_rgba(37,99,235,0.12)] transition-all duration-300 flex flex-col items-center text-center hover:-translate-y-1"
           >
-            <div className="h-14 w-14 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center mb-6 text-purple-600 group-hover:scale-105 transition-transform">
+            <div className="h-14 w-14 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center mb-5 text-purple-600 group-hover:scale-105 transition-transform">
               <FileText className="h-7 w-7" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Candidate Portal</h3>
+            <h3 className="text-base font-bold text-slate-900 mb-2">Candidate Portal</h3>
             <p className="text-xs text-slate-500 leading-relaxed mb-6 flex-1">
               Register candidates, generate real-time Keccak-256 manifesto hashes, and configure 6-axis policy stance vectors.
             </p>
@@ -87,17 +87,39 @@ export function LandingPage({ onSelectPortal }) {
           {/* Voter Gateway Card */}
           <a
             href="/voter"
-            className="group cursor-pointer bg-white rounded-3xl p-8 border border-slate-100 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_30px_-4px_rgba(37,99,235,0.12)] transition-all duration-300 flex flex-col items-center text-center hover:-translate-y-1 block"
+            className="group cursor-pointer bg-white rounded-3xl p-7 border border-slate-100 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_30px_-4px_rgba(37,99,235,0.12)] transition-all duration-300 flex flex-col items-center text-center hover:-translate-y-1 block"
           >
-            <div className="h-14 w-14 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-6 text-emerald-600 group-hover:scale-105 transition-transform">
+            <div className="h-14 w-14 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-5 text-emerald-600 group-hover:scale-105 transition-transform">
               <VoteIcon className="h-7 w-7" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Voter Gateway</h3>
+            <h3 className="text-base font-bold text-slate-900 mb-2">Voter Gateway</h3>
             <p className="text-xs text-slate-500 leading-relaxed mb-6 flex-1">
               Whitelist authentication, identity commitments, AI policy matching, and Groth16 zero-knowledge voting.
             </p>
-            <span className="text-sm font-bold text-blue-600 group-hover:text-blue-700 flex items-center gap-1 transition-colors">
+            <span className="text-sm font-bold text-emerald-600 group-hover:text-emerald-700 flex items-center gap-1 transition-colors">
               Open Gateway →
+            </span>
+          </a>
+
+          {/* Results Portal Card (4th Portal - No login required) */}
+          <a
+            href="/results"
+            className="group cursor-pointer bg-white rounded-3xl p-7 border border-slate-100 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_30px_-4px_rgba(245,158,11,0.18)] transition-all duration-300 flex flex-col items-center text-center hover:-translate-y-1 block"
+          >
+            <div className="h-14 w-14 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center mb-5 text-amber-600 group-hover:scale-105 transition-transform">
+              <BarChart3 className="h-7 w-7" />
+            </div>
+            <div className="flex items-center gap-1.5 justify-center mb-2">
+              <h3 className="text-base font-bold text-slate-900">Public Results</h3>
+              <span className="text-[10px] font-mono font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                No Sign-in
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed mb-6 flex-1">
+              Live election tallies, turnouts, winner certificates, and certified cryptographic audit receipts for past and ongoing elections.
+            </p>
+            <span className="text-sm font-bold text-amber-600 group-hover:text-amber-700 flex items-center gap-1 transition-colors">
+              View Results →
             </span>
           </a>
         </div>

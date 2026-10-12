@@ -379,6 +379,10 @@ router.post("/voter/request-otp", async (req, res) => {
       );
       if (existingUsers && existingUsers.length > 0) {
         userId = existingUsers[0].id;
+        await pool.query(
+          "UPDATE users SET voter_id = ? WHERE id = ? AND (voter_id IS NULL OR voter_id = '')",
+          [cleanVoterId, userId]
+        );
       } else {
         const [insResult] = await pool.query(
           "INSERT INTO users (role, email, password_hash, voter_id, phone_verified) VALUES ('VOTER', ?, 'NOPASS', ?, 1)",

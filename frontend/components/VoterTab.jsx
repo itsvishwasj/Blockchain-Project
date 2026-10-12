@@ -332,9 +332,22 @@ export function VoterTab({
     }
   };
 
+  const getManifestoUrl = (uri) => {
+    if (!uri) return null;
+    if (uri.startsWith('http://') || uri.startsWith('https://')) return uri;
+    const cleanBase = (API_BASE || '').replace(/\/+$/, '');
+    const cleanUri = uri.replace(/^\/+/, '');
+    return `${cleanBase}/${cleanUri}`;
+  };
+
   const handleVote = async () => {
     if (!selectedElectionId) {
       safeToast('error', 'Select Active Election', 'Please select an election window to vote.');
+      return;
+    }
+    const currentElection = electionsList.find(e => String(e.id) === String(selectedElectionId));
+    if (currentElection && currentElection.status !== 'OPEN') {
+      safeToast('error', 'Voting Closed', `Voting is not open for this election (Status: ${currentElection.status || 'DRAFT'}). The election administrator must open voting on the blockchain first.`);
       return;
     }
     if (hasVotedInElection) {
@@ -394,6 +407,7 @@ export function VoterTab({
   const currentElectionObj = electionsList.find(e => String(e.id) === String(selectedElectionId)) || (selectedElectionId ? {
     id: selectedElectionId,
     title: `Election #${selectedElectionId}`,
+    status: 'OPEN',
     votingOpen: true,
   } : null);
 
@@ -702,7 +716,7 @@ export function VoterTab({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                         {approvedCandidates.map(c => {
                           const cName = c.display_name || c.name || `Candidate #${c.id}`;
-                          const manifestoLink = c.manifesto_uri ? (c.manifesto_uri.startsWith('http') ? c.manifesto_uri : `${API_BASE}/${c.manifesto_uri}`) : null;
+                          const manifestoLink = getManifestoUrl(c.manifesto_uri);
                           return (
                             <div key={c.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
                               <span className="font-extrabold text-slate-900 block truncate">{cName}</span>
@@ -712,9 +726,10 @@ export function VoterTab({
                                   href={manifestoLink}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md mt-0.5 transition-colors"
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg mt-0.5 transition-colors cursor-pointer"
+                                  title="Open raw original manifesto document"
                                 >
-                                  <FileText className="h-3 w-3" /> View Manifesto File ↗
+                                  <FileText className="h-3 w-3" /> View Original Manifesto File ↗
                                 </a>
                               ) : (
                                 <span className="text-[10px] text-slate-400 italic">No document attached</span>
@@ -781,9 +796,7 @@ export function VoterTab({
 
               <div className="space-y-3">
                 {matchResults.map((result, i) => {
-                  const manifestoUrl = result.candidate.manifesto_uri
-                    ? (result.candidate.manifesto_uri.startsWith('http') ? result.candidate.manifesto_uri : `${API_BASE}/${result.candidate.manifesto_uri}`)
-                    : null;
+                  const manifestoUrl = getManifestoUrl(result.candidate?.manifesto_uri);
 
                   return (
                     <div key={result.candidate.id} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 hover:bg-slate-50 transition-all space-y-2.5">
@@ -939,7 +952,7 @@ export function VoterTab({
                   (() => {
                     const cand = approvedCandidates.find(c => String(c.id) === String(selectedCandidateId));
                     if (!cand) return null;
-                    const manifestoUrl = cand.manifesto_uri ? (cand.manifesto_uri.startsWith('http') ? cand.manifesto_uri : `${API_BASE}/${cand.manifesto_uri}`) : null;
+                    const manifestoUrl = getManifestoUrl(cand?.manifesto_uri);
                     return (
                       <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
                         <div className="flex items-center justify-between">
@@ -995,11 +1008,21 @@ export function VoterTab({
                     <p className="text-sm font-bold text-blue-900">Generating Groth16 ZK Proof...</p>
                     <p className="text-xs text-slate-500">Constructing witness & computing constraints for Election #{selectedElectionId}</p>
                   </div>
+                ) : (currentElectionObj && currentElectionObj.status !== 'OPEN') ? (
+                  <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-center space-y-1.5">
+                    <div className="flex items-center justify-center gap-2 text-amber-900 font-bold text-xs">
+                      <Lock className="h-4 w-4 text-amber-600" />
+                      <span>Voting Not Yet Opened (Status: {currentElectionObj.status || 'DRAFT'})</span>
+                    </div>
+                    <p className="text-[11px] text-amber-700">
+                      The election administrator must publish the Poseidon Merkle root and open voting on the blockchain before ballots can be cast. Please check back once voting is live.
+                    </p>
+                  </div>
                 ) : (
                   <button
                     onClick={handleVote}
                     disabled={!selectedCandidateId || hasVotedInElection}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl py-3 text-sm transition-all shadow-sm disabled:opacity-40 flex items-center justify-center gap-2"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl py-3 text-sm transition-all shadow-sm disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
                   >
                     <Shield className="h-4 w-4" />
                     Generate Groth16 Proof & Cast Vote in Election #{selectedElectionId} →

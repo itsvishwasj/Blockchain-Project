@@ -29,13 +29,6 @@ router.post("/elections/:id/register", async (req, res) => {
         [req.params.id]
       );
       if (totalRoll === 0) {
-        const [uRows] = await pool.query("SELECT email, voter_id FROM users WHERE id = ?", [req.user.userId]);
-        const userEmail = uRows.length && uRows[0].email ? uRows[0].email : `voter_${req.user.userId}@tri-vote.dev`;
-        const userVoterId = uRows.length && uRows[0].voter_id ? uRows[0].voter_id : `VTR-${req.user.userId}`;
-        await pool.query(
-          "INSERT INTO voter_rolls (election_id, voter_id, full_name, email) VALUES (?, ?, 'Registered Voter', ?)",
-          [req.params.id, userVoterId, userEmail]
-        );
         rollCheck = [{ id: 1 }];
       }
     }
@@ -222,6 +215,18 @@ router.post("/elections/:id/cast-vote", async (req, res) => {
     const electionId = req.params.id;
     const { pA, pB, pC, pubSignals, metrics, candidateId, nullifierHash: clientNullifier, voterId: clientVoterId, email: clientEmail } = req.body;
     
+    // ── GUARD: ELECTION MUST BE OPEN ON BLOCKCHAIN ──
+    const [electionRows] = await pool.query("SELECT status FROM elections WHERE id = ?", [electionId]);
+    if (!electionRows.length) {
+      return res.status(404).json({ error: "Election not found." });
+    }
+    const election = electionRows[0];
+    if (election.status !== "OPEN") {
+      return res.status(403).json({
+        error: `Voting is currently closed for this election (Status: ${election.status || 'DRAFT'}). The election administrator must publish the Merkle root and open blockchain voting before ballots can be cast.`
+      });
+    }
+
     const userId = req.user?.userId;
     const voterId = (clientVoterId || req.user?.voterId || '').trim().toUpperCase();
     const email = (clientEmail || req.user?.email || '').trim().toLowerCase();

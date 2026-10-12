@@ -9,6 +9,5 @@ frontend/.env.local
 cache/
 artifacts/
 Data_broken_backup/
-backend/db/*.sqlite
 scratch/
 *.log
