@@ -58,7 +58,6 @@ export function AdminTab({ toast }) {
   const [perfMetrics, setPerfMetrics] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedCsvFile, setSelectedCsvFile] = useState(null);
-  const [selectedCandidateCsvFile, setSelectedCandidateCsvFile] = useState(null);
   const [isSendingVoterIds, setIsSendingVoterIds] = useState(false);
 
   // New Election Form state - initialized with user's actual local time
@@ -376,84 +375,9 @@ export function AdminTab({ toast }) {
     }
   };
 
-  // 5. Preload Sample Whitelist Handler
-  const handlePreloadWhitelist = async (electionId) => {
-    setActionLoading(true);
-    try {
-      const csvContent = `full_name,email,voter_id\nAlice Smith,alice@tri-vote.dev,VTR-1001\nBob Jones,bob@tri-vote.dev,VTR-1002\nCharlie Brown,charlie@tri-vote.dev,VTR-1003\n`;
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const formData = new FormData();
-      formData.append('file', blob, 'whitelist.csv');
 
-      const { data } = await api.post(`/admin/elections/${electionId}/voter-roll`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
 
-      toast && toast('success', 'Whitelist Preloaded', `${data.added} sample voters added to database.`);
-      if (activeManageElection) loadElectionDetails(activeManageElection, wizardStep);
-      fetchRealTimeElections();
-    } catch (err) {
-      toast && toast('error', 'Upload Error', err.response?.data?.error || err.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
 
-  // Custom Candidate CSV Upload Handler
-  const handleUploadCandidateCsvFile = async () => {
-    if (!activeManageElection || !selectedCandidateCsvFile) {
-      toast && toast('error', 'Select File', 'Please choose a candidate CSV file to upload.');
-      return;
-    }
-    setActionLoading(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', selectedCandidateCsvFile);
-
-      const { data } = await api.post(`/admin/elections/${activeManageElection.id}/candidate-roll`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      toast && toast('success', 'Candidates Uploaded', `Added ${data.added} candidates to election (${data.skipped} skipped).`);
-      setSelectedCandidateCsvFile(null);
-      if (activeManageElection) loadElectionDetails(activeManageElection, wizardStep);
-      fetchRealTimeElections();
-    } catch (err) {
-      toast && toast('error', 'Upload Error', err.response?.data?.error || err.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Preload Sample Candidates Handler
-  const handlePreloadCandidates = async (electionId) => {
-    setActionLoading(true);
-    try {
-      const { data } = await api.post(`/admin/elections/${electionId}/preload-candidates`);
-      toast && toast('success', 'Candidates Preloaded', data.message || `${data.added !== undefined ? data.added : 3} sample candidate profiles added & approved.`);
-      if (activeManageElection) loadElectionDetails(activeManageElection, wizardStep);
-      fetchRealTimeElections();
-    } catch (err) {
-      try {
-        const csvContent = `name,bio,manifesto\nUdupa,Former Treasury Director & Policy Lead,Promoting transparent municipal governance through Poseidon zk-SNARKs and real-time public ledger attestation.\nRohan Sharma,Environmental Engineer & Urban Sustainability Scholar,Pioneering green energy microgrids and zero-emission municipal infrastructure backed by audited smart contracts.\nArchana Devi,Civic Tech Researcher & Open Data Advocate,Building decentralized public auditing tools and community-driven participatory budgeting.\n`;
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const formData = new FormData();
-        formData.append('file', blob, 'sample_candidates.csv');
-
-        const { data: uploadData } = await api.post(`/admin/elections/${electionId}/candidate-roll`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-
-        toast && toast('success', 'Candidates Preloaded', `${uploadData.added || 3} sample candidate profiles added & approved.`);
-        if (activeManageElection) loadElectionDetails(activeManageElection, wizardStep);
-        fetchRealTimeElections();
-      } catch (uploadErr) {
-        toast && toast('error', 'Preload Error', uploadErr.response?.data?.error || err.response?.data?.error || err.message);
-      }
-    } finally {
-      setActionLoading(false);
-    }
-  };
 
   const handleApproveCandidate = async (candidateId) => {
     setActionLoading(true);
@@ -920,13 +844,6 @@ export function AdminTab({ toast }) {
                     >
                       {actionLoading ? 'Uploading...' : 'Upload Selected CSV'}
                     </button>
-                    <button
-                      onClick={() => handlePreloadWhitelist(activeManageElection.id)}
-                      disabled={actionLoading}
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl px-4 py-2 transition-all"
-                    >
-                      Preload Sample Whitelist
-                    </button>
                   </div>
                 </div>
 
@@ -971,7 +888,7 @@ export function AdminTab({ toast }) {
                   </div>
 
                   {voterRoll.length === 0 ? (
-                    <p className="text-xs text-slate-400 text-center py-4 italic">No voters whitelisted yet. Upload CSV or load sample list above.</p>
+                    <p className="text-xs text-slate-400 text-center py-4 italic">No voters whitelisted yet. Upload voter whitelist CSV file above.</p>
                   ) : (
                     <div className="max-h-56 overflow-y-auto space-y-2">
                       {voterRoll.map((v, i) => (
@@ -1024,7 +941,7 @@ export function AdminTab({ toast }) {
                     onClick={() => setWizardStep(2)}
                     className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl px-5 py-2.5 text-xs transition-all"
                   >
-                    Next: Candidate Review & Attestation →
+                    Next: Candidate Review & Approval →
                   </button>
                 </div>
               </div>
@@ -1034,43 +951,30 @@ export function AdminTab({ toast }) {
             {wizardStep === 2 && (
               <div className="space-y-4">
                 <div className="p-5 rounded-2xl bg-purple-50/50 border border-purple-100 space-y-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-purple-900 flex items-center gap-2">
-                    <FileCheck2 className="h-4 w-4 text-purple-600" /> Step 2 — Import Candidate Roster & Attest Manifestos ({candidates.length})
-                  </h3>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Upload CSV file with <code className="bg-white px-2 py-0.5 rounded border border-purple-200 font-mono text-purple-700">name, bio, manifesto</code> headers, preload sample candidates, or review candidate profiles for on-chain attestation.
-                  </p>
-
-                  {/* Candidate CSV File Input & Preload Sample Candidates */}
-                  <div className="flex items-center gap-3 flex-wrap bg-white p-3 rounded-xl border border-purple-200">
-                    <input
-                      type="file"
-                      accept=".csv"
-                      onChange={e => setSelectedCandidateCsvFile(e.target.files[0])}
-                      className="text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-purple-50 file:text-purple-700 file:font-bold hover:file:bg-purple-100 file:cursor-pointer"
-                    />
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-purple-900 flex items-center gap-2">
+                      <FileCheck2 className="h-4 w-4 text-purple-600" /> Step 2 — Voluntary Candidate Registrations &amp; Manifesto Review ({candidates.length})
+                    </h3>
                     <button
-                      onClick={handleUploadCandidateCsvFile}
-                      disabled={actionLoading || !selectedCandidateCsvFile}
-                      className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl px-4 py-2 transition-all disabled:opacity-40 shadow-xs"
-                    >
-                      {actionLoading ? 'Uploading...' : 'Upload Candidate CSV'}
-                    </button>
-                    <button
-                      onClick={() => handlePreloadCandidates(activeManageElection.id)}
+                      onClick={() => loadElectionDetails(activeManageElection, 2)}
                       disabled={actionLoading}
-                      className="bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-bold text-xs rounded-xl px-4 py-2 transition-all cursor-pointer"
+                      className="flex items-center gap-1.5 bg-white hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold px-3 py-1.5 rounded-xl transition-all cursor-pointer shadow-2xs"
+                      title="Refresh candidate registrations list"
                     >
-                      Preload Sample Candidates
+                      <RefreshCw className={`h-3 w-3 ${actionLoading ? 'animate-spin' : ''}`} />
+                      Refresh List
                     </button>
                   </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Candidates must register voluntarily via the Candidate Portal for this election. Review submitted applicant profiles, inspect their uploaded manifesto document, and approve or reject candidates for on-chain attestation.
+                  </p>
                 </div>
 
                 {candidates.length === 0 ? (
                   <div className="p-6 text-center bg-slate-50 rounded-2xl border border-slate-200">
                     <AlertTriangle className="h-6 w-6 text-slate-400 mx-auto mb-2" />
                     <p className="text-xs font-bold text-slate-700">No Candidates Registered Yet</p>
-                    <p className="text-xs text-slate-400 mt-1">Candidates can register via the Candidate Portal, or you can import a candidate CSV roster or preload sample candidates above.</p>
+                    <p className="text-xs text-slate-400 mt-1">Candidates must register voluntarily via the Candidate Portal for Election #{activeManageElection?.id}. Once candidates submit their application and manifesto, their profile will appear here for admin review and approval.</p>
                   </div>
                 ) : (
                   <div className="space-y-3 max-h-60 overflow-y-auto">
