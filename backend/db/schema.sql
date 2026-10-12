@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS voters (
 
 CREATE TABLE IF NOT EXISTS candidates (
     id              BIGINT PRIMARY KEY AUTO_INCREMENT,
-    user_id         BIGINT NOT NULL UNIQUE,
+    user_id         BIGINT NOT NULL,
     election_id     BIGINT NOT NULL,
     display_name    VARCHAR(255) NOT NULL,
     bio             TEXT,
@@ -77,7 +77,8 @@ CREATE TABLE IF NOT EXISTS candidates (
     manifesto_tx_hash CHAR(66) NULL,       -- blockchain tx when manifesto was anchored (at upload)
     status          ENUM('PENDING','APPROVED','REJECTED') DEFAULT 'PENDING',
     FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (election_id) REFERENCES elections(id)
+    FOREIGN KEY (election_id) REFERENCES elections(id),
+    UNIQUE KEY uniq_candidate_per_election (user_id, election_id)
 );
 
 CREATE TABLE IF NOT EXISTS attested_content (

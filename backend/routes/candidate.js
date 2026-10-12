@@ -78,12 +78,32 @@ router.post("/profile", async (req, res) => {
       return res.status(200).json({ candidateId: existing[0].id, updated: true });
     }
 
-    const [result] = await pool.query(
-      `INSERT INTO candidates (user_id, election_id, display_name, bio, public_key, status)
-       VALUES (?, ?, ?, ?, ?, 'PENDING')`,
-      [req.user.userId, electionId, displayName, bio || "", publicKey || ""]
-    );
-    res.status(201).json({ candidateId: result.insertId });
+    try {
+      const [result] = await pool.query(
+        `INSERT INTO candidates (user_id, election_id, display_name, bio, public_key, status)
+         VALUES (?, ?, ?, ?, ?, 'PENDING')`,
+        [req.user.userId, electionId, displayName, bio || "", publicKey || ""]
+      );
+      res.status(201).json({ candidateId: result.insertId });
+    } catch (insertErr) {
+      if (insertErr.message && (insertErr.message.includes("UNIQUE") || insertErr.message.includes("Duplicate"))) {
+        const [recheck] = await pool.query(
+          "SELECT id, status FROM candidates WHERE user_id = ? AND election_id = ?",
+          [req.user.userId, electionId]
+        );
+        if (recheck.length) {
+          if (recheck[0].status === "APPROVED") {
+            return res.status(403).json({ error: "Your candidate profile has already been approved by an administrator and cannot be modified." });
+          }
+          await pool.query(
+            `UPDATE candidates SET display_name = ?, bio = ?, public_key = ?, status = 'PENDING', rejection_reason = NULL WHERE id = ?`,
+            [displayName, bio || "", publicKey || "", recheck[0].id]
+          );
+          return res.status(200).json({ candidateId: recheck[0].id, updated: true });
+        }
+      }
+      throw insertErr;
+    }
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

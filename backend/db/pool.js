@@ -101,6 +101,38 @@ function initSqlite() {
         db.run(`ALTER TABLE candidates ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;`, (err) => {});
         db.run(`ALTER TABLE candidates ADD COLUMN manifesto_hash TEXT NULL;`, (err) => {});
 
+        // Migration to fix UNIQUE constraint on candidates table
+        // (Ensures candidate user can register per election: UNIQUE(user_id, election_id) instead of user_id alone)
+        db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='candidates'", (err, row) => {
+          if (!err && row && row.sql && (row.sql.includes("user_id INTEGER NOT NULL UNIQUE") || row.sql.includes("user_id BIGINT NOT NULL UNIQUE") || row.sql.includes("user_id INT NOT NULL UNIQUE"))) {
+            console.log("🔄 Migrating candidates table to remove single user_id UNIQUE constraint and enforce UNIQUE(user_id, election_id)...");
+            db.serialize(() => {
+              db.run(`DROP TABLE IF EXISTS candidates_new;`);
+              db.run(`CREATE TABLE candidates_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                election_id INTEGER NOT NULL,
+                display_name TEXT NOT NULL,
+                bio TEXT,
+                public_key TEXT NOT NULL,
+                stance_vector TEXT NULL,
+                stance_tx_hash TEXT NULL,
+                manifesto_tx_hash TEXT NULL,
+                status TEXT DEFAULT 'PENDING',
+                rejection_reason TEXT NULL,
+                manifesto_hash TEXT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, election_id)
+              );`);
+              db.run(`INSERT OR IGNORE INTO candidates_new (id, user_id, election_id, display_name, bio, public_key, stance_vector, stance_tx_hash, manifesto_tx_hash, status, rejection_reason, manifesto_hash)
+                      SELECT id, user_id, election_id, display_name, bio, public_key, stance_vector, stance_tx_hash, manifesto_tx_hash, status, rejection_reason, manifesto_hash FROM candidates;`);
+              db.run(`DROP TABLE candidates;`);
+              db.run(`ALTER TABLE candidates_new RENAME TO candidates;`);
+              console.log("✅ candidates table successfully migrated to UNIQUE(user_id, election_id).");
+            });
+          }
+        });
+
         db.run(`CREATE TABLE IF NOT EXISTS attested_content (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           candidate_id INTEGER NOT NULL,

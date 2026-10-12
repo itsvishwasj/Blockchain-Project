@@ -462,30 +462,31 @@ export function VoterTab({
                   type="text"
                   value={voterId}
                   onChange={e => { setVoterId(e.target.value); setOtpSent(false); setOtpVerified(false); setAuthError(''); }}
-                  className="w-full rounded-xl bg-white border border-slate-200 pl-10 pr-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none transition-all"
-                  placeholder="VTR-1001"
+                  className="w-full rounded-xl bg-white border border-slate-200 pl-10 pr-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none transition-all placeholder:text-slate-400"
+                  placeholder="e.g. VTR-1001 (assigned Voter ID)"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">Email</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Email Address *</label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                   type="email"
                   value={email}
                   onChange={e => { setEmail(e.target.value); setOtpSent(false); setOtpVerified(false); setAuthError(''); }}
-                  className="w-full rounded-xl bg-white border border-slate-200 pl-10 pr-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none transition-all"
-                  placeholder="alice@tri-vote.dev"
+                  className="w-full rounded-xl bg-white border border-slate-200 pl-10 pr-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none transition-all placeholder:text-slate-400"
+                  placeholder="e.g. yourname@gmail.com (whitelisted email)"
                 />
               </div>
             </div>
 
             {authError && (
-              <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2.5">
-                <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-300 text-xs text-rose-800 flex items-start gap-2.5">
+                <AlertCircle className="h-4 w-4 text-rose-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="font-semibold">{authError}</p>
+                  <p className="font-bold text-rose-950">Credential Verification Warning</p>
+                  <p className="mt-0.5 text-rose-800 leading-relaxed">{authError}</p>
                 </div>
               </div>
             )}

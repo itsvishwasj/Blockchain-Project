@@ -319,56 +319,75 @@ router.post("/voter/request-otp", async (req, res) => {
     const cleanVoterId = String(voterId).trim().toUpperCase();
     const cleanEmail = String(email).trim().toLowerCase();
 
-    // 1. Authenticate voter eligibility
-    let isEligible = false;
-    let voterFullName = "Registered Voter";
+    // 1. Authenticate voter eligibility strictly against the official voter whitelist uploaded by the admin
+    let rolls = [];
+    const targetElectionId = electionId ? Number(electionId) : null;
 
-    try {
-      let rollQuery = "SELECT id, full_name, email, voter_id FROM voter_rolls WHERE (LOWER(email) = ? OR UPPER(voter_id) = ?)";
-      const rollParams = [cleanEmail, cleanVoterId];
-
-      if (electionId) {
-        rollQuery += " AND election_id = ?";
-        rollParams.push(electionId);
-      }
-      rollQuery += " LIMIT 1";
-
-      const [rolls] = await pool.query(rollQuery, rollParams);
-      if (rolls && rolls.length > 0) {
-        isEligible = true;
-        if (rolls[0].full_name) voterFullName = rolls[0].full_name;
-      }
-    } catch (e) {
-      console.warn("Voter rolls lookup notice:", e.message);
-    }
-
-    // Check against users table
-    if (!isEligible) {
-      try {
-        const [users] = await pool.query(
-          "SELECT id, email, voter_id FROM users WHERE LOWER(email) = ? OR UPPER(voter_id) = ? LIMIT 1",
-          [cleanEmail, cleanVoterId]
-        );
-        if (users && users.length > 0) {
-          isEligible = true;
-        }
-      } catch (e) {
-        console.warn("Users lookup notice:", e.message);
-      }
-    }
-
-    // Check against preloaded whitelist or auto-enroll voter identity
-    if (!isEligible) {
-      const isPreloaded = PRELOADED_WHITELIST.some(
-        w => w.voterId.toUpperCase() === cleanVoterId || w.email.toLowerCase() === cleanEmail
+    if (targetElectionId) {
+      // Check exact match of BOTH voter_id and email for the specified election
+      const [exactMatch] = await pool.query(
+        "SELECT id, full_name, email, voter_id, election_id FROM voter_rolls WHERE UPPER(voter_id) = ? AND LOWER(email) = ? AND election_id = ? LIMIT 1",
+        [cleanVoterId, cleanEmail, targetElectionId]
       );
-      if (isPreloaded) {
-        isEligible = true;
-      } else {
-        // Allow voter identity authentication via email OTP for any valid voter credentials
-        isEligible = true;
+      rolls = exactMatch || [];
+
+      if (!rolls.length) {
+        // Detailed security warnings based on why it didn't match:
+        // Case A: Pair exists in a different election
+        const [otherElection] = await pool.query(
+          "SELECT id, election_id FROM voter_rolls WHERE UPPER(voter_id) = ? AND LOWER(email) = ? LIMIT 1",
+          [cleanVoterId, cleanEmail]
+        );
+        if (otherElection && otherElection.length > 0) {
+          return res.status(403).json({
+            error: `Your credentials (Voter ID: ${cleanVoterId}, Email: ${cleanEmail}) are registered for Election #${otherElection[0].election_id}, not Election #${targetElectionId}. Please select Election #${otherElection[0].election_id}.`
+          });
+        }
+
+        // Case B: Voter ID exists in this election, but with a different email
+        const [idMismatch] = await pool.query(
+          "SELECT id, email FROM voter_rolls WHERE UPPER(voter_id) = ? AND election_id = ? LIMIT 1",
+          [cleanVoterId, targetElectionId]
+        );
+        if (idMismatch && idMismatch.length > 0) {
+          return res.status(403).json({
+            error: `The entered email (${cleanEmail}) does not match the official email registered for Voter ID ${cleanVoterId} in Election #${targetElectionId}. Please use your exact registered email.`
+          });
+        }
+
+        // Case C: Email exists in this election, but with a different voter ID
+        const [emailMismatch] = await pool.query(
+          "SELECT id, voter_id FROM voter_rolls WHERE LOWER(email) = ? AND election_id = ? LIMIT 1",
+          [cleanEmail, targetElectionId]
+        );
+        if (emailMismatch && emailMismatch.length > 0) {
+          return res.status(403).json({
+            error: `The entered Voter ID (${cleanVoterId}) does not match the registered Voter ID for email ${cleanEmail} in Election #${targetElectionId}. Please use your exact assigned Voter ID.`
+          });
+        }
+
+        // Case D: Neither exists in this election roll
+        return res.status(403).json({
+          error: `Access Denied: The entered Voter ID (${cleanVoterId}) and Email (${cleanEmail}) are not present in the official voter list uploaded by the administrator for Election #${targetElectionId}. The OTP cannot be dispatched.`
+        });
+      }
+    } else {
+      // No electionId specified: check exact match across any uploaded election roll
+      const [anyMatch] = await pool.query(
+        "SELECT id, full_name, email, voter_id, election_id FROM voter_rolls WHERE UPPER(voter_id) = ? AND LOWER(email) = ? ORDER BY id DESC LIMIT 1",
+        [cleanVoterId, cleanEmail]
+      );
+      rolls = anyMatch || [];
+
+      if (!rolls.length) {
+        return res.status(403).json({
+          error: `Access Denied: The entered Voter ID (${cleanVoterId}) and Email (${cleanEmail}) do not match any eligible voter in the official voter list uploaded by the administrator. The OTP cannot be dispatched.`
+        });
       }
     }
+
+    const matchedRoll = rolls[0];
+    const voterFullName = matchedRoll.full_name || "Registered Voter";
 
     // 2. Ensure a user row exists
     let userId = null;
