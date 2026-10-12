@@ -28,6 +28,7 @@ import {
   ExternalLink,
   Flame,
   Trash2,
+  Mail,
 } from 'lucide-react';
 
 function formatLocalDateTime(date) {
@@ -58,6 +59,7 @@ export function AdminTab({ toast }) {
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedCsvFile, setSelectedCsvFile] = useState(null);
   const [selectedCandidateCsvFile, setSelectedCandidateCsvFile] = useState(null);
+  const [isSendingVoterIds, setIsSendingVoterIds] = useState(false);
 
   // New Election Form state - initialized with user's actual local time
   const [newTitle, setNewTitle] = useState('');
@@ -311,7 +313,7 @@ export function AdminTab({ toast }) {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      toast && toast('success', 'CSV Uploaded', `Added ${data.added} voters to database (${data.skipped} skipped).`);
+      toast && toast('success', 'CSV Uploaded', `Added ${data.added} voters to database (${data.skipped} skipped). You can now dispatch Voter IDs to their emails.`);
       setSelectedCsvFile(null);
       loadElectionDetails(activeManageElection, wizardStep);
       fetchRealTimeElections();
@@ -319,6 +321,58 @@ export function AdminTab({ toast }) {
       toast && toast('error', 'Upload Error', err.response?.data?.error || err.message);
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  // 4b. Dispatch Voter IDs to registered voter emails
+  const handleSendAllVoterIds = async () => {
+    if (!activeManageElection) return;
+    if (voterRoll.length === 0) {
+      toast && toast('error', 'Empty Whitelist', 'No voters in whitelist to send IDs to. Upload a CSV file first.');
+      return;
+    }
+
+    if (!confirm(`Send official Voter ID credentials to all ${voterRoll.length} registered voter email addresses for "${activeManageElection.title}"?`)) {
+      return;
+    }
+
+    setIsSendingVoterIds(true);
+    try {
+      const { data } = await api.post(`/admin/elections/${activeManageElection.id}/send-voter-ids`);
+      toast && toast(
+        'success',
+        'Voter IDs Dispatched',
+        data.message || `Dispatched Voter IDs to ${data.sentCount} voter emails!`
+      );
+      if (activeManageElection) {
+        loadElectionDetails(activeManageElection, wizardStep);
+      }
+    } catch (err) {
+      toast && toast('error', 'Dispatch Error', err.response?.data?.error || err.message);
+    } finally {
+      setIsSendingVoterIds(false);
+    }
+  };
+
+  const handleSendSingleVoterId = async (voter) => {
+    if (!activeManageElection || !voter) return;
+    setIsSendingVoterIds(true);
+    try {
+      const { data } = await api.post(`/admin/elections/${activeManageElection.id}/send-voter-ids`, {
+        voterRollId: voter.id,
+      });
+      toast && toast(
+        'success',
+        'Voter ID Sent',
+        `Official Voter ID (${voter.voter_id}) emailed to ${voter.email} successfully!`
+      );
+      if (activeManageElection) {
+        loadElectionDetails(activeManageElection, wizardStep);
+      }
+    } catch (err) {
+      toast && toast('error', 'Send Error', err.response?.data?.error || err.message);
+    } finally {
+      setIsSendingVoterIds(false);
     }
   };
 
@@ -877,15 +931,37 @@ export function AdminTab({ toast }) {
                       <h4 className="text-xs font-bold text-slate-700 uppercase">Whitelisted Voters in Database ({voterRoll.length})</h4>
                       <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">ON-CHAIN ELIGIBILITY LIST</span>
                     </div>
-                    {voterRoll.length > 0 && (
-                      <button
-                        onClick={handleClearAllVoters}
-                        disabled={actionLoading}
-                        className="text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer disabled:opacity-50"
-                      >
-                        Clear Whitelist ({voterRoll.length})
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {voterRoll.length > 0 && (
+                        <button
+                          onClick={handleSendAllVoterIds}
+                          disabled={actionLoading || isSendingVoterIds}
+                          className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-xl px-3.5 py-1.5 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+                          title="Send assigned Voter IDs and instructions to all emails in the uploaded whitelist"
+                        >
+                          {isSendingVoterIds ? (
+                            <>
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              <span>Sending IDs...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Mail className="h-3 w-3" />
+                              <span>📧 Send Voter IDs to All Voters ({voterRoll.length})</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                      {voterRoll.length > 0 && (
+                        <button
+                          onClick={handleClearAllVoters}
+                          disabled={actionLoading}
+                          className="text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer disabled:opacity-50"
+                        >
+                          Clear Whitelist
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {voterRoll.length === 0 ? (
@@ -900,6 +976,28 @@ export function AdminTab({ toast }) {
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <span className="font-mono text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100 text-[11px]">{v.voter_id}</span>
+                            {v.has_voted ? (
+                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1" title={v.voted_at ? `Voted at ${new Date(v.voted_at).toLocaleString()}` : 'Voted'}>
+                                <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Voted
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+                                Not Voted
+                              </span>
+                            )}
+                            {v.credentials_sent_at ? (
+                              <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md flex items-center gap-1" title={`ID emailed at ${new Date(v.credentials_sent_at).toLocaleString()}`}>
+                                <Check className="h-3 w-3 text-blue-600" /> ID Sent
+                              </span>
+                            ) : null}
+                            <button
+                              onClick={() => handleSendSingleVoterId(v)}
+                              disabled={actionLoading || isSendingVoterIds}
+                              title={`Send Voter ID email to ${v.email}`}
+                              className="p-1 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                            >
+                              <Mail className="h-3.5 w-3.5" />
+                            </button>
                             <button
                               onClick={() => handleDeleteVoter(v)}
                               disabled={actionLoading}

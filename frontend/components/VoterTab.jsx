@@ -26,6 +26,7 @@ import {
   Vote as VoteIcon,
   Check,
   AlertCircle,
+  AlertTriangle,
   FileText,
   ExternalLink,
   Users,
@@ -66,6 +67,46 @@ export function VoterTab({
   const [selectedElectionId, setSelectedElectionId] = useState('');
   const [loadedCandidates, setLoadedCandidates] = useState([]);
   const [isFetchingCandidates, setIsFetchingCandidates] = useState(false);
+  const [hasVotedInElection, setHasVotedInElection] = useState(false);
+  const [votedInfo, setVotedInfo] = useState(null);
+  const [isCheckingVotedStatus, setIsCheckingVotedStatus] = useState(false);
+
+  // Check if voter has already voted in the selected election
+  useEffect(() => {
+    if (!selectedElectionId) {
+      setHasVotedInElection(false);
+      setVotedInfo(null);
+      return;
+    }
+
+    let isMounted = true;
+    const checkStatus = async () => {
+      setIsCheckingVotedStatus(true);
+      try {
+        const cleanVoterId = encodeURIComponent((voterId || '').trim());
+        const cleanEmail = encodeURIComponent((email || '').trim());
+        const { data } = await api.get(
+          `/public/elections/${selectedElectionId}/voting-status?voterId=${cleanVoterId}&email=${cleanEmail}`
+        );
+        if (isMounted) {
+          if (data && data.hasVoted) {
+            setHasVotedInElection(true);
+            setVotedInfo(data);
+          } else {
+            setHasVotedInElection(false);
+            setVotedInfo(null);
+          }
+        }
+      } catch (e) {
+        console.log('Voting status check note:', e.message);
+      } finally {
+        if (isMounted) setIsCheckingVotedStatus(false);
+      }
+    };
+
+    checkStatus();
+    return () => { isMounted = false; };
+  }, [selectedElectionId, voterId, email, otpVerified]);
 
   // Fetch available active elections
   useEffect(() => {
@@ -296,6 +337,10 @@ export function VoterTab({
       safeToast('error', 'Select Active Election', 'Please select an election window to vote.');
       return;
     }
+    if (hasVotedInElection) {
+      safeToast('error', 'Already Voted', 'You have already cast your ballot in this election. Double-voting is strictly prohibited.');
+      return;
+    }
     if (!selectedCandidateId) {
       safeToast('error', 'Select a candidate', 'Please choose a candidate.');
       return;
@@ -310,8 +355,10 @@ export function VoterTab({
       const { data } = await api.post(`/voter/elections/${selectedElectionId}/cast-vote`, {
         candidateId: selectedCandidateId,
         nullifierHash: nullifier,
+        voterId: voterId.trim(),
+        email: email.trim(),
         metrics: DEFAULT_LATENCY_METRICS
-      }).catch(() => ({ data: null }));
+      });
 
       const receipt = {
         txHash: data?.txHash || simulateTxHash(),
@@ -324,6 +371,8 @@ export function VoterTab({
       };
 
       setVoteReceipt(receipt);
+      setHasVotedInElection(true);
+      setVotedInfo({ hasVoted: true, votedAt: new Date().toISOString() });
       onVote && onVote(voterId.trim(), selectedCandidateId, receipt);
       setIsGeneratingProof(false);
       setStep(4);
@@ -331,7 +380,14 @@ export function VoterTab({
       safeToast('success', 'Vote Cast', `Anonymous vote confirmed on-chain for Election #${selectedElectionId}.`);
     } catch (err) {
       setIsGeneratingProof(false);
-      safeToast('error', 'Vote Error', err.message);
+      const errMsg = err.response?.data?.error || err.message || 'Failed to cast vote.';
+      if (err.response?.status === 403 || errMsg.toLowerCase().includes('already voted')) {
+        setHasVotedInElection(true);
+        setVotedInfo({ hasVoted: true });
+        safeToast('warning', 'Already Voted', errMsg);
+      } else {
+        safeToast('error', 'Vote Error', errMsg);
+      }
     }
   };
 
@@ -612,6 +668,22 @@ export function VoterTab({
                 <p className="text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 p-2.5 rounded-xl text-center">
                   ⚠️ Please select an active election from the dropdown above before calculating matches.
                 </p>
+              ) : hasVotedInElection ? (
+                <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-900 space-y-2">
+                  <div className="flex items-center gap-2 font-black text-sm text-amber-950">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                    <span>Already Voted in Election #{selectedElectionId}</span>
+                  </div>
+                  <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                    Our records confirm that voter <strong className="font-mono text-amber-950">{voterId || email}</strong> has already cast a ballot in <strong>{currentElectionObj?.title || `Election #${selectedElectionId}`}</strong>.
+                    Each registered voter is permitted to vote <strong>only once</strong> per election window.
+                  </p>
+                  {votedInfo?.votedAt && (
+                    <p className="text-[11px] font-mono text-amber-700">
+                      Ballot recorded on: {new Date(votedInfo.votedAt).toLocaleString()}
+                    </p>
+                  )}
+                </div>
               ) : (
                 <div className="space-y-3">
                   <p className="text-xs text-indigo-800 font-medium">
@@ -747,13 +819,24 @@ export function VoterTab({
                       </div>
                       <button
                         onClick={() => {
+                          if (hasVotedInElection) {
+                            safeToast('error', 'Already Voted', 'You have already voted in this election.');
+                            return;
+                          }
                           setSelectedCandidateId(String(result.candidate.id));
                           setStep(4);
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
-                        className="w-full bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 font-bold text-xs py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                        disabled={hasVotedInElection}
+                        className={`w-full border font-bold text-xs py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-2xs ${
+                          hasVotedInElection
+                            ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                            : 'bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 cursor-pointer'
+                        }`}
                       >
-                        Select {result.candidate.name} & Cast Vote in Election #{selectedElectionId} →
+                        {hasVotedInElection
+                          ? `Already Voted in Election #${selectedElectionId}`
+                          : `Select ${result.candidate.name} & Cast Vote in Election #${selectedElectionId} →`}
                       </button>
                     </div>
                   );
@@ -762,15 +845,27 @@ export function VoterTab({
 
               {/* Proceed to Anonymous Voting Button at End of Page */}
               <div className="pt-4 border-t border-slate-100">
-                <button
-                  onClick={() => {
-                    setStep(4);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl py-4 text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
-                >
-                  Proceed to Anonymous Voting in Election #{selectedElectionId} →
-                </button>
+                {hasVotedInElection ? (
+                  <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-center space-y-1.5">
+                    <div className="flex items-center justify-center gap-2 text-amber-950 font-bold text-sm">
+                      <AlertTriangle className="h-4 w-4 text-amber-600" />
+                      <span>Ballot Locked — You Have Already Voted in Election #{selectedElectionId}</span>
+                    </div>
+                    <p className="text-xs text-amber-800 font-medium">
+                      Duplicate voting is prohibited. Each eligible voter is permitted to cast only one ballot.
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setStep(4);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl py-4 text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                  >
+                    Proceed to Anonymous Voting in Election #{selectedElectionId} →
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -800,12 +895,35 @@ export function VoterTab({
                   <p className="text-sm font-black text-slate-900">{currentElectionObj?.title || `Election #${selectedElectionId}`}</p>
                 </div>
 
+                {hasVotedInElection && !voteReceipt && (
+                  <div className="p-5 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-900 space-y-3">
+                    <div className="flex items-center gap-2.5 font-black text-sm text-amber-950">
+                      <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                      <span>You Have Already Voted in This Election</span>
+                    </div>
+                    <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                      Our records confirm that voter <strong>{voterId || email}</strong> has already cast their ballot in <strong>{currentElectionObj?.title || `Election #${selectedElectionId}`}</strong>.
+                    </p>
+                    <div className="p-3 bg-white/80 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-1">
+                      <span className="font-bold text-amber-950 block">⚠️ Single Ballot Policy Enforced:</span>
+                      <p className="text-[11px] text-amber-800">
+                        Each registered voter is permitted to cast only <strong>one vote</strong> per election window. Once your ballot has been submitted, subsequent vote attempts are automatically locked and rejected.
+                      </p>
+                      {votedInfo?.votedAt && (
+                        <p className="text-[11px] font-mono text-amber-700 pt-1">
+                          Ballot recorded at: {new Date(votedInfo.votedAt).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">Select Candidate in Election #{selectedElectionId}</label>
                   <select
                     value={selectedCandidateId}
                     onChange={e => setSelectedCandidateId(e.target.value)}
-                    disabled={isGeneratingProof || !!voteReceipt}
+                    disabled={isGeneratingProof || !!voteReceipt || hasVotedInElection}
                     className="w-full rounded-xl bg-white border border-slate-200 px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none transition-all disabled:opacity-50"
                   >
                     <option value="">-- Choose a candidate --</option>
@@ -861,6 +979,16 @@ export function VoterTab({
                       View Performance & Audit Receipt →
                     </button>
                   </div>
+                ) : hasVotedInElection ? (
+                  <div className="p-4 rounded-2xl bg-slate-100 border border-slate-200 text-center space-y-1">
+                    <div className="flex items-center justify-center gap-2 text-slate-700 font-bold text-xs">
+                      <Lock className="h-4 w-4 text-slate-500" />
+                      <span>Voting Locked — You Have Already Voted in Election #{selectedElectionId}</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Each eligible voter is permitted to cast only one ballot per election.
+                    </p>
+                  </div>
                 ) : isGeneratingProof ? (
                   <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6 text-center space-y-3">
                     <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto" />
@@ -870,7 +998,7 @@ export function VoterTab({
                 ) : (
                   <button
                     onClick={handleVote}
-                    disabled={!selectedCandidateId}
+                    disabled={!selectedCandidateId || hasVotedInElection}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl py-3 text-sm transition-all shadow-sm disabled:opacity-40 flex items-center justify-center gap-2"
                   >
                     <Shield className="h-4 w-4" />

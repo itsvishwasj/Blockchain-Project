@@ -6,6 +6,7 @@ const pool = require("../db/pool");
 const { requireAuth } = require("../middleware/auth");
 const chain = require("../services/blockchain");
 const { ethers } = require("ethers");
+const { sendVoterCredentials } = require("../services/email");
 
 const router = express.Router();
 router.use(requireAuth(["ADMIN"]));
@@ -124,11 +125,73 @@ router.post("/elections/:id/voter-roll", checkElectionOwnership, upload.single("
 router.get("/elections/:id/voter-roll", checkElectionOwnership, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT id, full_name, email, voter_id FROM voter_rolls WHERE election_id = ? ORDER BY id DESC",
+      "SELECT id, full_name, email, voter_id, credentials_sent_at, has_voted, voted_at FROM voter_rolls WHERE election_id = ? ORDER BY id DESC",
       [req.params.id]
     );
     res.json({ roll: rows, total: rows.length });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post("/elections/:id/send-voter-ids", checkElectionOwnership, async (req, res) => {
+  try {
+    const electionId = req.params.id;
+    const [elections] = await pool.query(
+      "SELECT id, title, description FROM elections WHERE id = ?",
+      [electionId]
+    );
+    if (!elections.length) return res.status(404).json({ error: "Election not found" });
+    const election = elections[0];
+
+    const voterRollId = req.body.voterRollId;
+    let query = "SELECT id, full_name, email, voter_id FROM voter_rolls WHERE election_id = ?";
+    const params = [electionId];
+    if (voterRollId) {
+      query += " AND id = ?";
+      params.push(voterRollId);
+    }
+
+    const [voters] = await pool.query(query, params);
+    if (!voters.length) {
+      return res.status(400).json({ error: "No voters found in whitelist for this election." });
+    }
+
+    let sentCount = 0;
+    let failedCount = 0;
+    const failures = [];
+
+    for (const v of voters) {
+      try {
+        await sendVoterCredentials(v.email, {
+          fullName: v.full_name,
+          voterId: v.voter_id,
+          electionTitle: election.title,
+          electionId: election.id
+        });
+        sentCount++;
+        await pool.query(
+          "UPDATE voter_rolls SET credentials_sent_at = CURRENT_TIMESTAMP WHERE id = ?",
+          [v.id]
+        );
+      } catch (err) {
+        failedCount++;
+        failures.push({ voterId: v.voter_id, email: v.email, error: err.message });
+        console.warn(`Failed sending voter ID to ${v.email}:`, err.message);
+      }
+    }
+
+    console.log(`📧 Voter ID dispatch finished for Election #${electionId}: ${sentCount} sent, ${failedCount} failed.`);
+    res.json({
+      ok: true,
+      total: voters.length,
+      sentCount,
+      failedCount,
+      failures: failures.length > 0 ? failures : undefined,
+      message: `Dispatched Voter IDs to ${sentCount} voter email${sentCount === 1 ? '' : 's'}.${failedCount > 0 ? ` (${failedCount} failed)` : ''}`
+    });
+  } catch (err) {
+    console.error("send-voter-ids error:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.delete("/elections/:id/voter-roll/:voterRef", checkElectionOwnership, async (req, res) => {

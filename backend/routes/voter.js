@@ -150,9 +150,142 @@ router.post("/elections/:id/match", async (req, res) => {
   }
 });
 
+router.get("/elections/:id/voting-status", async (req, res) => {
+  try {
+    const electionId = req.params.id;
+    const userId = req.user?.userId;
+    const voterId = (req.query.voterId || req.user?.voterId || '').trim().toUpperCase();
+    const email = (req.query.email || req.user?.email || '').trim().toLowerCase();
+
+    // 1. Check election_voter_participations
+    const [participations] = await pool.query(
+      `SELECT id, voter_id, email, voted_at, nullifier_hash 
+       FROM election_voter_participations 
+       WHERE election_id = ? AND (
+         (user_id IS NOT NULL AND user_id = ?) OR 
+         (voter_id IS NOT NULL AND UPPER(voter_id) = ?) OR 
+         (email IS NOT NULL AND LOWER(email) = ?)
+       ) LIMIT 1`,
+      [electionId, userId || -1, voterId || '', email || '']
+    );
+
+    if (participations.length > 0) {
+      return res.json({
+        hasVoted: true,
+        votedAt: participations[0].voted_at,
+        nullifierHash: participations[0].nullifier_hash,
+        message: "You have already cast your ballot in this election. Each eligible voter is permitted to vote only once."
+      });
+    }
+
+    // 2. Check voter_rolls
+    if (voterId || email) {
+      const [rollRows] = await pool.query(
+        `SELECT has_voted, voted_at FROM voter_rolls 
+         WHERE election_id = ? AND (UPPER(voter_id) = ? OR LOWER(email) = ?) AND has_voted = 1 LIMIT 1`,
+        [electionId, voterId || '', email || '']
+      );
+
+      if (rollRows.length > 0) {
+        return res.json({
+          hasVoted: true,
+          votedAt: rollRows[0].voted_at,
+          message: "You have already cast your ballot in this election. Each eligible voter is permitted to vote only once."
+        });
+      }
+    }
+
+    // 3. Check voters table
+    if (userId) {
+      const [votersRows] = await pool.query(
+        `SELECT has_voted, voted_at FROM voters 
+         WHERE election_id = ? AND user_id = ? AND has_voted = 1 LIMIT 1`,
+        [electionId, userId]
+      );
+      if (votersRows.length > 0) {
+        return res.json({
+          hasVoted: true,
+          votedAt: votersRows[0].voted_at,
+          message: "You have already cast your ballot in this election. Each eligible voter is permitted to vote only once."
+        });
+      }
+    }
+
+    res.json({ hasVoted: false });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post("/elections/:id/cast-vote", async (req, res) => {
   try {
-    const { pA, pB, pC, pubSignals, metrics, candidateId, nullifierHash: clientNullifier } = req.body;
+    const electionId = req.params.id;
+    const { pA, pB, pC, pubSignals, metrics, candidateId, nullifierHash: clientNullifier, voterId: clientVoterId, email: clientEmail } = req.body;
+    
+    const userId = req.user?.userId;
+    const voterId = (clientVoterId || req.user?.voterId || '').trim().toUpperCase();
+    const email = (clientEmail || req.user?.email || '').trim().toLowerCase();
+
+    const nullifierHash = (pubSignals && pubSignals.length > 0 && String(pubSignals[0]) !== '0')
+      ? pubSignals[0]
+      : (clientNullifier || ("0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')));
+
+    // ── GUARD AGAINST DUPLICATE VOTING ──
+    // 1. Check if nullifier is already in vote_receipts
+    const [existingReceipt] = await pool.query(
+      "SELECT id FROM vote_receipts WHERE election_id = ? AND nullifier_hash = ? LIMIT 1",
+      [electionId, nullifierHash]
+    );
+    if (existingReceipt.length > 0) {
+      return res.status(403).json({
+        error: "This zero-knowledge nullifier has already been spent. You have already voted in this election."
+      });
+    }
+
+    // 2. Check election_voter_participations
+    const [participationCheck] = await pool.query(
+      `SELECT id, voted_at FROM election_voter_participations 
+       WHERE election_id = ? AND (
+         (user_id IS NOT NULL AND user_id = ?) OR 
+         (voter_id IS NOT NULL AND UPPER(voter_id) = ?) OR 
+         (email IS NOT NULL AND LOWER(email) = ?)
+       ) LIMIT 1`,
+      [electionId, userId || -1, voterId || '', email || '']
+    );
+    if (participationCheck.length > 0) {
+      return res.status(403).json({
+        error: "You have already cast your ballot in this election. Each eligible voter is permitted to vote only once."
+      });
+    }
+
+    // 3. Check voter_rolls
+    if (voterId || email) {
+      const [rollCheck] = await pool.query(
+        `SELECT has_voted FROM voter_rolls 
+         WHERE election_id = ? AND (UPPER(voter_id) = ? OR LOWER(email) = ?) AND has_voted = 1 LIMIT 1`,
+        [electionId, voterId || '', email || '']
+      );
+      if (rollCheck.length > 0) {
+        return res.status(403).json({
+          error: "You have already cast your ballot in this election. Each eligible voter is permitted to vote only once."
+        });
+      }
+    }
+
+    // 4. Check voters table
+    if (userId) {
+      const [votersCheck] = await pool.query(
+        "SELECT has_voted FROM voters WHERE election_id = ? AND user_id = ? AND has_voted = 1 LIMIT 1",
+        [electionId, userId]
+      );
+      if (votersCheck.length > 0) {
+        return res.status(403).json({
+          error: "You have already cast your ballot in this election. Each eligible voter is permitted to vote only once."
+        });
+      }
+    }
+
+    // ── CAST VOTE ──
     const merkleProofFetchMs = Math.round(metrics?.merkleProofFetchMs || 120);
     const zkProofGenMs = Math.round(metrics?.zkProofGenerationMs || 680);
     const txStart = Date.now();
@@ -164,10 +297,15 @@ router.post("/elections/:id/cast-vote", async (req, res) => {
 
     try {
       if (pA && pB && pC) {
-        receipt = await chain.castVoteOnChain(req.params.id, pA, pB, pC, pubSignals);
+        receipt = await chain.castVoteOnChain(electionId, pA, pB, pC, pubSignals);
       }
     } catch (chainErr) {
       console.log("ℹ️ Chain castVote note:", chainErr.message);
+      if (chainErr.message && chainErr.message.toLowerCase().includes("nullifier")) {
+        return res.status(403).json({
+          error: "On-chain verification failed: Nullifier was already used. Double-voting is prohibited."
+        });
+      }
     }
 
     const serverBlockchainMs = Date.now() - txStart;
@@ -175,21 +313,51 @@ router.post("/elections/:id/cast-vote", async (req, res) => {
     const totalLatencyMs = Math.round(metrics?.totalLatencyMs || (merkleProofFetchMs + zkProofGenMs + blockchainConfirmMs));
     const txTime = (blockchainConfirmMs / 1000).toFixed(2);
 
-    const nullifierHash = (pubSignals && pubSignals.length > 0 && String(pubSignals[0]) !== '0')
-      ? pubSignals[0]
-      : (clientNullifier || ("0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')));
-
     try {
       await pool.query(
         `INSERT INTO vote_receipts (election_id, candidate_id, nullifier_hash, tx_hash, block_number, merkle_proof_fetch_ms, zk_proof_gen_ms, blockchain_confirm_ms, total_latency_ms)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [req.params.id, candidateId || null, nullifierHash, receipt.hash, receipt.blockNumber || 1, merkleProofFetchMs, zkProofGenMs, blockchainConfirmMs, totalLatencyMs]
+        [electionId, candidateId || null, nullifierHash, receipt.hash, receipt.blockNumber || 1, merkleProofFetchMs, zkProofGenMs, blockchainConfirmMs, totalLatencyMs]
       );
     } catch (dbErr) {
       console.log("ℹ️ vote_receipts insert note:", dbErr.message);
     }
 
-    console.log(`✅ VOTE Persisted — election ${req.params.id}, candidate ${candidateId}, tx ${receipt.hash}`);
+    // Record voter participation to permanently lock voting
+    try {
+      await pool.query(
+        `INSERT INTO election_voter_participations (election_id, user_id, voter_id, email, nullifier_hash, voted_at)
+         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        [electionId, userId || null, voterId || null, email || null, nullifierHash]
+      );
+    } catch (partErr) {
+      console.log("ℹ️ participation insert note:", partErr.message);
+    }
+
+    // Mark in voter_rolls
+    try {
+      if (voterId || email) {
+        await pool.query(
+          `UPDATE voter_rolls SET has_voted = 1, voted_at = CURRENT_TIMESTAMP 
+           WHERE election_id = ? AND (UPPER(voter_id) = ? OR LOWER(email) = ?)`,
+          [electionId, voterId || '', email || '']
+        );
+      }
+    } catch (rollErr) {
+      console.log("ℹ️ voter_rolls update note:", rollErr.message);
+    }
+
+    // Mark in voters
+    try {
+      if (userId) {
+        await pool.query(
+          "UPDATE voters SET has_voted = 1, voted_at = CURRENT_TIMESTAMP WHERE election_id = ? AND user_id = ?",
+          [electionId, userId]
+        );
+      }
+    } catch (vtrErr) {}
+
+    console.log(`✅ VOTE Persisted & Locked — election ${electionId}, candidate ${candidateId}, voter ${voterId || email || userId}, tx ${receipt.hash}`);
     res.json({ txHash: receipt.hash, nullifierHash, txTime });
   } catch (err) {
     console.log(`❌ VOTE REJECTED — ${err.message}`);

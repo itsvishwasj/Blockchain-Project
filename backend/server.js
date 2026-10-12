@@ -54,6 +54,56 @@ app.get("/public/elections", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.get("/public/elections/:id/voting-status", async (req, res) => {
+  try {
+    const pool = require("./db/pool");
+    const electionId = req.params.id;
+    const voterId = (req.query.voterId || "").trim().toUpperCase();
+    const email = (req.query.email || "").trim().toLowerCase();
+
+    if (!voterId && !email) {
+      return res.json({ hasVoted: false });
+    }
+
+    const [participations] = await pool.query(
+      `SELECT id, voter_id, email, voted_at, nullifier_hash 
+       FROM election_voter_participations 
+       WHERE election_id = ? AND (
+         (voter_id IS NOT NULL AND UPPER(voter_id) = ?) OR 
+         (email IS NOT NULL AND LOWER(email) = ?)
+       ) LIMIT 1`,
+      [electionId, voterId || "", email || ""]
+    );
+
+    if (participations.length > 0) {
+      return res.json({
+        hasVoted: true,
+        votedAt: participations[0].voted_at,
+        nullifierHash: participations[0].nullifier_hash,
+        message: "You have already cast your ballot in this election. Each eligible voter is permitted to vote only once."
+      });
+    }
+
+    const [rollRows] = await pool.query(
+      `SELECT has_voted, voted_at FROM voter_rolls 
+       WHERE election_id = ? AND (UPPER(voter_id) = ? OR LOWER(email) = ?) AND has_voted = 1 LIMIT 1`,
+      [electionId, voterId || "", email || ""]
+    );
+
+    if (rollRows.length > 0) {
+      return res.json({
+        hasVoted: true,
+        votedAt: rollRows[0].voted_at,
+        message: "You have already cast your ballot in this election. Each eligible voter is permitted to vote only once."
+      });
+    }
+
+    res.json({ hasVoted: false });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/public/email-status", async (req, res) => {
   const isWebhookConfigured = !!(process.env.EMAIL_WEBHOOK_URL || process.env.GOOGLE_SCRIPT_WEBHOOK_URL);
   const isBrevoConfigured = !!(process.env.BREVO_API_KEY && process.env.BREVO_API_KEY.trim());

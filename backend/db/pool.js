@@ -131,6 +131,23 @@ function initSqlite() {
           // Ignore error if column already exists
         });
 
+        db.run(`ALTER TABLE voter_rolls ADD COLUMN has_voted INTEGER DEFAULT 0;`, (err) => {});
+        db.run(`ALTER TABLE voter_rolls ADD COLUMN voted_at DATETIME NULL;`, (err) => {});
+        db.run(`ALTER TABLE voter_rolls ADD COLUMN credentials_sent_at DATETIME NULL;`, (err) => {});
+        db.run(`ALTER TABLE voters ADD COLUMN has_voted INTEGER DEFAULT 0;`, (err) => {});
+        db.run(`ALTER TABLE voters ADD COLUMN voted_at DATETIME NULL;`, (err) => {});
+
+        db.run(`CREATE TABLE IF NOT EXISTS election_voter_participations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          election_id INTEGER NOT NULL,
+          user_id INTEGER NULL,
+          voter_id TEXT NULL,
+          email TEXT NULL,
+          nullifier_hash TEXT NOT NULL,
+          voted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(election_id, nullifier_hash)
+        );`);
+
         db.run(`CREATE TABLE IF NOT EXISTS voter_preferences (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           voter_id INTEGER NOT NULL,
@@ -165,6 +182,27 @@ async function setupPool() {
       const conn = await mysqlPool.getConnection();
       conn.release();
       console.log("✅ DB connected: Using local MySQL instance");
+
+      try {
+        await mysqlPool.query(`CREATE TABLE IF NOT EXISTS election_voter_participations (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          election_id INT NOT NULL,
+          user_id INT NULL,
+          voter_id VARCHAR(255) NULL,
+          email VARCHAR(255) NULL,
+          nullifier_hash VARCHAR(255) NOT NULL,
+          voted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE KEY uq_elect_nullifier (election_id, nullifier_hash)
+        );`);
+        await mysqlPool.query(`ALTER TABLE voter_rolls ADD COLUMN has_voted TINYINT(1) DEFAULT 0;`).catch(() => {});
+        await mysqlPool.query(`ALTER TABLE voter_rolls ADD COLUMN voted_at TIMESTAMP NULL;`).catch(() => {});
+        await mysqlPool.query(`ALTER TABLE voter_rolls ADD COLUMN credentials_sent_at TIMESTAMP NULL;`).catch(() => {});
+        await mysqlPool.query(`ALTER TABLE voters ADD COLUMN has_voted TINYINT(1) DEFAULT 0;`).catch(() => {});
+        await mysqlPool.query(`ALTER TABLE voters ADD COLUMN voted_at TIMESTAMP NULL;`).catch(() => {});
+      } catch (migErr) {
+        // Safe ignore
+      }
+
       return;
     } catch (err) {
       console.log(`⚠️ MySQL connection unavailable (${err.message}). Switching to SQLite fallback...`);
