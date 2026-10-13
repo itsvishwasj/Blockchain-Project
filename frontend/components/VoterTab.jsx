@@ -350,6 +350,15 @@ export function VoterTab({
       safeToast('error', 'Voting Closed', `Voting is not open for this election (Status: ${currentElection.status || 'DRAFT'}). The election administrator must open voting on the blockchain first.`);
       return;
     }
+    const now = Date.now();
+    if (currentElection?.start_time && now < new Date(currentElection.start_time).getTime()) {
+      safeToast('error', 'Voting Not Started', `The scheduled voting window opens on ${new Date(currentElection.start_time).toLocaleString()}.`);
+      return;
+    }
+    if (currentElection?.end_time && now > new Date(currentElection.end_time).getTime()) {
+      safeToast('error', 'Voting Ended', `The voting window closed on ${new Date(currentElection.end_time).toLocaleString()}.`);
+      return;
+    }
     if (hasVotedInElection) {
       safeToast('error', 'Already Voted', 'You have already cast your ballot in this election. Double-voting is strictly prohibited.');
       return;

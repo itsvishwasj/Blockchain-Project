@@ -304,6 +304,61 @@ router.post("/elections", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.patch("/elections/:id/timing", checkElectionOwnership, async (req, res) => {
+  try {
+    const { startTime, endTime, start_time, end_time, title, description } = req.body;
+    const [rows] = await pool.query("SELECT * FROM elections WHERE id = ?", [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: "Election not found" });
+
+    const election = rows[0];
+    const rawStart = startTime || start_time || election.start_time;
+    const rawEnd = endTime || end_time || election.end_time;
+
+    let finalStart = election.start_time;
+    let finalEnd = election.end_time;
+
+    if (rawStart) {
+      const d = new Date(rawStart);
+      if (!isNaN(d.getTime())) finalStart = d.toISOString();
+    }
+    if (rawEnd) {
+      const d = new Date(rawEnd);
+      if (!isNaN(d.getTime())) finalEnd = d.toISOString();
+    }
+
+    const finalTitle = (title !== undefined && title.trim()) ? title.trim() : election.title;
+    const finalDesc = description !== undefined ? description.trim() : election.description;
+
+    // Check if end time is extended past current time and election was closed
+    let newStatus = election.status;
+    const nowMs = Date.now();
+    const endMs = new Date(finalEnd).getTime();
+    if (election.status === "CLOSED" && !isNaN(endMs) && endMs > nowMs) {
+      newStatus = "OPEN";
+    }
+
+    await pool.query(
+      `UPDATE elections
+       SET title = ?, description = ?, start_time = ?, end_time = ?, status = ?
+       WHERE id = ?`,
+      [finalTitle, finalDesc, finalStart, finalEnd, newStatus, req.params.id]
+    );
+
+    res.json({
+      ok: true,
+      message: "Election schedule updated successfully.",
+      election: {
+        ...election,
+        title: finalTitle,
+        description: finalDesc,
+        start_time: finalStart,
+        end_time: finalEnd,
+        status: newStatus
+      }
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.post("/elections/:id/voter-root", checkElectionOwnership, async (req, res) => {
   try {
     await withRouteTimeout((async () => {
@@ -392,6 +447,10 @@ router.post("/elections/:id/open-onchain", checkElectionOwnership, async (req, r
       const e = rows[0];
       const startUnix = Math.floor(new Date(e.start_time).getTime() / 1000);
       const endUnix = Math.floor(new Date(e.end_time).getTime() / 1000);
+      const nowUnix = Math.floor(Date.now() / 1000);
+      const effectiveStartUnix = Math.min(startUnix, nowUnix - 60);
+      const effectiveEndUnix = Math.max(endUnix, nowUnix + 3600);
+
       const [[{ count }]] = await pool.query(
         "SELECT COUNT(*) as count FROM candidates WHERE election_id = ? AND UPPER(status) = 'APPROVED'",
         [req.params.id]
@@ -403,7 +462,7 @@ router.post("/elections/:id/open-onchain", checkElectionOwnership, async (req, r
       }
       let txHash = "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
       try {
-        const receipt = await chain.createElectionOnChain(req.params.id, e.title, startUnix, endUnix, count);
+        const receipt = await chain.createElectionOnChain(req.params.id, e.title, effectiveStartUnix, effectiveEndUnix, count);
         if (receipt && receipt.hash) txHash = receipt.hash;
       } catch (chainErr) {
         console.log("createElectionOnChain EVM notice:", chainErr.message);

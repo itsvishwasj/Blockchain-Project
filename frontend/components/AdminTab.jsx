@@ -66,6 +66,14 @@ export function AdminTab({ toast }) {
   const [newStartTime, setNewStartTime] = useState(() => formatLocalDateTime(new Date()));
   const [newEndTime, setNewEndTime] = useState(() => formatLocalDateTime(new Date(Date.now() + 86400000)));
 
+  // Schedule Edit Modal state
+  const [editingScheduleElection, setEditingScheduleElection] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editStartTime, setEditStartTime] = useState('');
+  const [editEndTime, setEditEndTime] = useState('');
+  const [isUpdatingTiming, setIsUpdatingTiming] = useState(false);
+
   // 1. Authenticate Admin session & load real-time elections list
   async function ensureAdminSession() {
     try {
@@ -263,11 +271,14 @@ export function AdminTab({ toast }) {
     }
     setActionLoading(true);
     try {
+      const startIso = newStartTime ? new Date(newStartTime).toISOString() : new Date().toISOString();
+      const endIso = newEndTime ? new Date(newEndTime).toISOString() : new Date(Date.now() + 86400000).toISOString();
+
       const { data } = await api.post('/admin/elections', {
         title: newTitle.trim(),
         description: newDescription.trim() || 'Municipal ZK Election',
-        startTime: newStartTime,
-        endTime: newEndTime,
+        startTime: startIso,
+        endTime: endIso,
         contractAddress: '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0',
       });
 
@@ -279,8 +290,8 @@ export function AdminTab({ toast }) {
         title: newTitle.trim(),
         description: newDescription.trim() || 'Municipal ZK Election',
         status: 'DRAFT',
-        start_time: newStartTime,
-        end_time: newEndTime,
+        start_time: startIso,
+        end_time: endIso,
         merkle_root: '0x0',
       };
 
@@ -294,6 +305,59 @@ export function AdminTab({ toast }) {
       toast && toast('error', 'Creation Error', err.response?.data?.error || err.message);
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  // Schedule Edit Handlers
+  const openEditScheduleModal = (election) => {
+    setEditingScheduleElection(election);
+    setEditTitle(election.title || '');
+    setEditDescription(election.description || '');
+    setEditStartTime(election.start_time ? formatLocalDateTime(new Date(election.start_time)) : formatLocalDateTime(new Date()));
+    setEditEndTime(election.end_time ? formatLocalDateTime(new Date(election.end_time)) : formatLocalDateTime(new Date(Date.now() + 86400000)));
+  };
+
+  const closeEditScheduleModal = () => {
+    setEditingScheduleElection(null);
+  };
+
+  const handleSaveScheduleChanges = async (e) => {
+    e.preventDefault();
+    if (!editingScheduleElection) return;
+    if (!editTitle.trim()) {
+      toast && toast('error', 'Title Required', 'Election title cannot be empty.');
+      return;
+    }
+    setIsUpdatingTiming(true);
+    try {
+      const startIso = editStartTime ? new Date(editStartTime).toISOString() : new Date().toISOString();
+      const endIso = editEndTime ? new Date(editEndTime).toISOString() : new Date(Date.now() + 86400000).toISOString();
+
+      const { data } = await api.patch(`/admin/elections/${editingScheduleElection.id}/timing`, {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        startTime: startIso,
+        endTime: endIso,
+      });
+
+      toast && toast('success', 'Schedule Updated', data.message || 'Election start and end times updated successfully.');
+      
+      if (activeManageElection && Number(activeManageElection.id) === Number(editingScheduleElection.id)) {
+        setActiveManageElection(prev => ({
+          ...prev,
+          title: editTitle.trim(),
+          description: editDescription.trim(),
+          start_time: startIso,
+          end_time: endIso,
+        }));
+      }
+
+      setEditingScheduleElection(null);
+      await fetchRealTimeElections();
+    } catch (err) {
+      toast && toast('error', 'Update Failed', err.response?.data?.error || err.message);
+    } finally {
+      setIsUpdatingTiming(false);
     }
   };
 
@@ -673,10 +737,17 @@ export function AdminTab({ toast }) {
                 <div className="flex items-center gap-3 pt-2 flex-wrap">
                   <button
                     onClick={() => loadElectionDetails(el, 1)}
-                    className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-xs"
+                    className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-xs cursor-pointer"
                   >
                     <Settings2 className="h-4 w-4" />
-                    Open Setup & Control Wizard →
+                    Open Setup &amp; Control Wizard →
+                  </button>
+                  <button
+                    onClick={() => openEditScheduleModal(el)}
+                    className="flex items-center gap-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3.5 py-2.5 text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  >
+                    <Calendar className="h-3.5 w-3.5" />
+                    Edit Schedule &amp; Times
                   </button>
                   <a
                     href={`/results/${el.id}`}
@@ -774,9 +845,18 @@ export function AdminTab({ toast }) {
                 <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-100">
                   Election #{activeManageElection.id} Setup Wizard
                 </span>
-                <h2 className="text-lg font-extrabold text-slate-900 mt-1">
-                  {activeManageElection.title}
-                </h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <h2 className="text-lg font-extrabold text-slate-900">
+                    {activeManageElection.title}
+                  </h2>
+                  <button
+                    onClick={() => openEditScheduleModal(activeManageElection)}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                    title="Edit election title, description, and start/end schedule"
+                  >
+                    <Calendar className="h-3 w-3" /> Edit Schedule &amp; Times
+                  </button>
+                </div>
               </div>
               <button
                 onClick={closeManageWizard}
@@ -1315,6 +1395,102 @@ export function AdminTab({ toast }) {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* EDIT ELECTION SCHEDULE & TIMES MODAL */}
+      {editingScheduleElection && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="animate-fade-in-up w-full max-w-lg rounded-3xl border border-slate-100 bg-white shadow-2xl p-6 sm:p-7 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                  <Calendar className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">Edit Election Schedule</h3>
+                  <p className="text-xs text-slate-500">Election #{editingScheduleElection.id}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeEditScheduleModal}
+                className="p-1 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveScheduleChanges} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Election Title *</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  required
+                  className="w-full rounded-xl bg-white border border-slate-200 px-3.5 py-2.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none transition-all font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Description</label>
+                <input
+                  type="text"
+                  value={editDescription}
+                  onChange={e => setEditDescription(e.target.value)}
+                  className="w-full rounded-xl bg-white border border-slate-200 px-3.5 py-2.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-indigo-600" /> Start Time *
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={editStartTime}
+                    onChange={e => setEditStartTime(e.target.value)}
+                    required
+                    className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none transition-all font-medium"
+                  />
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Local browser time</span>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-indigo-600" /> End Time *
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={editEndTime}
+                    onChange={e => setEditEndTime(e.target.value)}
+                    required
+                    className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none transition-all font-medium"
+                  />
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Local browser time</span>
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={closeEditScheduleModal}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingTiming}
+                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl px-5 py-2.5 text-xs transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {isUpdatingTiming ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                  Save Schedule Changes
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

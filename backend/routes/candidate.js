@@ -222,11 +222,16 @@ router.post("/manifesto/:candidateId", upload.single("file"), async (req, res) =
     );
     if (!rows.length) return res.status(404).json({ error: "Candidate profile not found" });
 
-    // ── LOCK CHECK ──────────────────────────────────────────
-    // If this candidate is already APPROVED, or manifesto is already anchored, reject any replacement.
-    if (rows[0].status === "APPROVED" || rows[0].manifesto_tx_hash) {
+    // ── STRICT SINGLE-UPLOAD LOCK CHECK ──────────────────────
+    // A candidate is permitted to upload their manifesto exactly once.
+    // Replacement is strictly prohibited regardless of approval status.
+    const [attestedRows] = await pool.query(
+      "SELECT id FROM attested_content WHERE candidate_id = ? AND content_type = 'MANIFESTO' LIMIT 1",
+      [req.params.candidateId]
+    );
+    if (attestedRows.length > 0 || rows[0].status === "APPROVED" || rows[0].manifesto_tx_hash) {
       return res.status(403).json({
-        error: "Your candidate profile and manifesto have already been approved by the election admin and anchored on the blockchain. The manifesto cannot be changed."
+        error: "A manifesto file has already been uploaded for this candidate. Manifesto files can only be uploaded once and cannot be replaced."
       });
     }
     // ─────────────────────────────────────────────────────────

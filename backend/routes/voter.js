@@ -215,8 +215,11 @@ router.post("/elections/:id/cast-vote", async (req, res) => {
     const electionId = req.params.id;
     const { pA, pB, pC, pubSignals, metrics, candidateId, nullifierHash: clientNullifier, voterId: clientVoterId, email: clientEmail } = req.body;
     
-    // ── GUARD: ELECTION MUST BE OPEN ON BLOCKCHAIN ──
-    const [electionRows] = await pool.query("SELECT status FROM elections WHERE id = ?", [electionId]);
+    // ── GUARD: ELECTION SCHEDULE & BLOCKCHAIN STATUS ──
+    const [electionRows] = await pool.query(
+      "SELECT id, title, status, start_time, end_time FROM elections WHERE id = ?",
+      [electionId]
+    );
     if (!electionRows.length) {
       return res.status(404).json({ error: "Election not found." });
     }
@@ -225,6 +228,25 @@ router.post("/elections/:id/cast-vote", async (req, res) => {
       return res.status(403).json({
         error: `Voting is currently closed for this election (Status: ${election.status || 'DRAFT'}). The election administrator must publish the Merkle root and open blockchain voting before ballots can be cast.`
       });
+    }
+
+    const now = Date.now();
+    if (election.start_time) {
+      const startMs = new Date(election.start_time).getTime();
+      if (!isNaN(startMs) && now < startMs) {
+        return res.status(403).json({
+          error: `Voting has not started yet for "${election.title}". The scheduled voting window opens on ${new Date(election.start_time).toLocaleString()}.`
+        });
+      }
+    }
+    if (election.end_time) {
+      const endMs = new Date(election.end_time).getTime();
+      if (!isNaN(endMs) && now > endMs) {
+        await pool.query("UPDATE elections SET status = 'CLOSED' WHERE id = ?", [electionId]).catch(() => {});
+        return res.status(403).json({
+          error: `The voting window for "${election.title}" has closed (ended on ${new Date(election.end_time).toLocaleString()}). No more ballots can be accepted.`
+        });
+      }
     }
 
     const userId = req.user?.userId;

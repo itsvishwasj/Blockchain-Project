@@ -37,7 +37,6 @@ export function CandidateTab({ onSubmit, registrationLocked, toast }) {
   const [stance, setStance] = useState(createEmptyStance());
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [uploadingDoc, setUploadingDoc] = useState(false);
   const fileInputRef = useRef(null);
 
   const handleFileSelection = async (file) => {
@@ -139,29 +138,6 @@ export function CandidateTab({ onSubmit, registrationLocked, toast }) {
 
   const handleStanceChange = (key, value) => {
     setStance(prev => ({ ...prev, [key]: value }));
-  };
-
-  const handleProfileFileUpload = async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file || !profile?.id) return;
-    if (profile.status === 'APPROVED' || profile.manifesto_tx_hash) {
-      toast && toast('error', 'Manifesto Locked', 'Your manifesto has already been approved by the election admin and cannot be changed.');
-      return;
-    }
-    setUploadingDoc(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      await api.post(`/candidate/manifesto/${profile.id}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      toast && toast('success', 'Manifesto Uploaded', 'Manifesto document uploaded and anchored on blockchain!');
-      await loadProfileAndElections();
-    } catch (err) {
-      toast && toast('error', 'Upload Failed', err.response?.data?.error || err.message);
-    } finally {
-      setUploadingDoc(false);
-    }
   };
 
   const handleSubmit = async () => {
@@ -459,41 +435,15 @@ export function CandidateTab({ onSubmit, registrationLocked, toast }) {
             </div>
           )}
 
-          {profile.status === 'APPROVED' ? (
-            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between flex-wrap gap-2 text-xs text-emerald-900">
-              <div className="flex items-center gap-2 font-bold">
-                <ShieldCheck className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-                <span>Manifesto Approved by Admin — File is Locked &amp; Immutable</span>
-              </div>
-              <span className="text-[11px] font-mono bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-bold">
-                LOCKED ON-CHAIN
-              </span>
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between flex-wrap gap-2 text-xs text-slate-700">
+            <div className="flex items-center gap-2 font-bold text-slate-900">
+              <ShieldCheck className="h-4 w-4 text-indigo-600 flex-shrink-0" />
+              <span>Manifesto Document Uploaded — Single Upload Policy Enforced</span>
             </div>
-          ) : (
-            <div className="p-4 rounded-2xl bg-purple-50/60 border border-purple-200 flex items-center justify-between flex-wrap gap-3">
-              <div>
-                <p className="text-xs font-bold text-purple-900">Upload / Replace Manifesto Document</p>
-                <p className="text-[11px] text-slate-500">Attach an official PDF, Word doc, or text file before admin approval locks it</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="file"
-                  id="cand-profile-manifesto-file"
-                  accept=".pdf,.doc,.docx,.txt"
-                  disabled={uploadingDoc}
-                  onChange={handleProfileFileUpload}
-                  className="hidden"
-                />
-                <label
-                  htmlFor="cand-profile-manifesto-file"
-                  className="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors disabled:opacity-50"
-                >
-                  <Upload className="h-3.5 w-3.5" />
-                  {uploadingDoc ? 'Uploading...' : 'Upload Manifesto Document'}
-                </label>
-              </div>
-            </div>
-          )}
+            <span className="text-[11px] font-mono bg-slate-200/80 text-slate-700 px-2.5 py-0.5 rounded-full font-bold">
+              FILE CANNOT BE REPLACED
+            </span>
+          </div>
         </div>
       )}
 
