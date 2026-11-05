@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { api, API_BASE } from '@/lib/api';
+import { api, API_BASE, getManifestoUrl } from '@/lib/api';
 import { POLICY_LABELS, POLICY_KEYS } from '@/types';
 import { cosineSimilarity, simulatePoseidonCommitment, simulateNullifier, simulateTxHash, formatPercent } from '@/lib/crypto';
 import { PRELOADED_WHITELIST, DEFAULT_LATENCY_METRICS } from '@/lib/data';
@@ -330,14 +330,6 @@ export function VoterTab({
     } finally {
       setIsFetchingCandidates(false);
     }
-  };
-
-  const getManifestoUrl = (uri) => {
-    if (!uri) return null;
-    if (uri.startsWith('http://') || uri.startsWith('https://')) return uri;
-    const cleanBase = (API_BASE || '').replace(/\/+$/, '');
-    const cleanUri = uri.replace(/^\/+/, '');
-    return `${cleanBase}/${cleanUri}`;
   };
 
   const handleVote = async () => {
@@ -726,7 +718,7 @@ export function VoterTab({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                         {approvedCandidates.map(c => {
                           const cName = c.display_name || c.name || `Candidate #${c.id}`;
-                          const manifestoLink = getManifestoUrl(c.manifesto_uri);
+                          const manifestoLink = getManifestoUrl(c.manifesto_uri, c.id);
                           return (
                             <div key={c.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
                               <span className="font-extrabold text-slate-900 block truncate">{cName}</span>
@@ -806,7 +798,7 @@ export function VoterTab({
 
               <div className="space-y-3">
                 {matchResults.map((result, i) => {
-                  const manifestoUrl = getManifestoUrl(result.candidate?.manifesto_uri);
+                  const manifestoUrl = getManifestoUrl(result.candidate?.manifesto_uri, result.candidate?.id || result.candidateId);
 
                   return (
                     <div key={result.candidate.id} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 hover:bg-slate-50 transition-all space-y-2.5">
@@ -962,7 +954,7 @@ export function VoterTab({
                   (() => {
                     const cand = approvedCandidates.find(c => String(c.id) === String(selectedCandidateId));
                     if (!cand) return null;
-                    const manifestoUrl = getManifestoUrl(cand?.manifesto_uri);
+                    const manifestoUrl = getManifestoUrl(cand?.manifesto_uri, cand?.id);
                     return (
                       <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
                         <div className="flex items-center justify-between">

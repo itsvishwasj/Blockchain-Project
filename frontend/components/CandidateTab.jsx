@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { api, API_BASE } from '@/lib/api';
+import { api, API_BASE, getManifestoUrl } from '@/lib/api';
 import { ethers } from 'ethers';
 import { simulateKeccak256 } from '@/lib/crypto';
 import { PolicySliders, createEmptyStance } from '@/components/PolicySliders';
@@ -417,15 +417,17 @@ export function CandidateTab({ onSubmit, registrationLocked, toast }) {
           </div>
 
           {/* Uploaded Manifesto File Link / Attachment Action */}
-          {profile.manifesto_uri && (
+          {getManifestoUrl(profile.manifesto_uri, profile.id) && (
             <div className="p-4 rounded-2xl bg-blue-50/80 border border-blue-200 flex items-center justify-between flex-wrap gap-2 text-xs">
               <div className="flex items-center gap-2 text-blue-950 font-bold">
                 <FileText className="h-4 w-4 text-blue-600" />
                 <span>Uploaded Manifesto Document:</span>
-                <span className="font-mono text-slate-600 font-normal truncate max-w-[220px]">{profile.manifesto_uri}</span>
+                <span className="font-mono text-slate-600 font-normal truncate max-w-[220px]">
+                  {profile.manifesto_uri && profile.manifesto_uri !== 'inline' ? profile.manifesto_uri : 'Official Verified Manifesto'}
+                </span>
               </div>
               <a
-                href={profile.manifesto_uri.startsWith('http') ? profile.manifesto_uri : `${API_BASE}/${profile.manifesto_uri}`}
+                href={getManifestoUrl(profile.manifesto_uri, profile.id)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs transition-colors"

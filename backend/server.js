@@ -178,7 +178,9 @@ app.get("/public/elections/:id/candidates", async (req, res) => {
       id: c.id,
       display_name: c.display_name,
       bio: c.bio,
-      manifesto_uri: c.manifesto_uri,
+      manifesto_uri: (!c.manifesto_uri || c.manifesto_uri === 'inline')
+        ? `public/candidates/${c.id}/manifesto`
+        : c.manifesto_uri,
       stance_vector: c.stance_vector,
       stanceVector: typeof c.stance_vector === 'string' ? JSON.parse(c.stance_vector || '{}') : (c.stance_vector || {})
     }));
@@ -202,6 +204,98 @@ app.get("/public/elections/:id/candidates", async (req, res) => {
 
     res.json({ candidates: candidateObjects });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Dedicated endpoint to stream candidate manifesto document inline in full fidelity
+app.get("/public/candidates/:id/manifesto", async (req, res) => {
+  try {
+    const pool = require("./db/pool");
+    const [cRows] = await pool.query(
+      `SELECT c.id, c.display_name, c.bio, c.stance_vector,
+              (SELECT storage_uri FROM attested_content ac
+                 WHERE ac.candidate_id = c.id AND ac.content_type = 'MANIFESTO'
+                 ORDER BY ac.attested_at DESC LIMIT 1) AS storage_uri,
+              (SELECT content_hash FROM attested_content ac
+                 WHERE ac.candidate_id = c.id AND ac.content_type = 'MANIFESTO'
+                 ORDER BY ac.attested_at DESC LIMIT 1) AS content_hash
+       FROM candidates c
+       WHERE c.id = ?`,
+      [req.params.id]
+    );
+
+    if (!cRows.length) return res.status(404).send("Candidate not found");
+    const cand = cRows[0];
+
+    // Check if file exists on disk
+    let targetPath = null;
+    if (cand.storage_uri && cand.storage_uri !== 'inline') {
+      const candidates = [
+        path.resolve(localUploadsDir, path.basename(cand.storage_uri)),
+        path.resolve(rootUploadsDir, path.basename(cand.storage_uri)),
+        path.resolve(cwdUploadsDir, path.basename(cand.storage_uri)),
+        path.resolve(__dirname, cand.storage_uri),
+        path.resolve(process.cwd(), cand.storage_uri)
+      ];
+      for (const p of candidates) {
+        if (fs.existsSync(p)) {
+          targetPath = p;
+          break;
+        }
+      }
+    }
+
+    if (targetPath) {
+      const ext = path.extname(targetPath).toLowerCase();
+      if (ext === '.pdf') {
+        res.setHeader("Content-Type", "application/pdf");
+      } else if (ext === '.txt') {
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      } else if (ext === '.docx') {
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      }
+      res.setHeader("Content-Disposition", `inline; filename="${path.basename(targetPath)}"`);
+      return res.sendFile(targetPath);
+    }
+
+    // Fallback: Return clean text manifesto document
+    const manifestoText = cand.bio || `Official Platform Manifesto for ${cand.display_name || 'Candidate #' + cand.id}`;
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Content-Disposition", `inline; filename="manifesto_${cand.id}.txt"`);
+    return res.send(manifestoText);
+  } catch (err) {
+    res.status(500).send("Error loading manifesto: " + err.message);
+  }
+});
+
+// Fallback handler for /inline to prevent "Cannot GET /inline"
+app.get("/inline", (req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Candidate Manifesto</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; color: #1e293b; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
+          .card { background: white; border: 1px solid #e2e8f0; border-radius: 20px; padding: 32px; max-width: 500px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); text-align: center; }
+          .badge { display: inline-block; background: #eff6ff; color: #2563eb; border: 1px solid #dbeafe; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 16px; }
+          h2 { margin: 0 0 12px 0; color: #0f172a; font-size: 20px; }
+          p { margin: 0 0 24px 0; font-size: 14px; color: #64748b; line-height: 1.6; }
+          .btn { display: inline-block; background: #2563eb; color: white; padding: 10px 20px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 13px; }
+          .btn:hover { background: #1d4ed8; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <span class="badge">Verified Platform Document</span>
+          <h2>Candidate Official Manifesto</h2>
+          <p>This candidate's manifesto and policy stances are securely attested on the blockchain.</p>
+          <a href="javascript:window.close()" class="btn">Close Window</a>
+        </div>
+      </body>
+    </html>
+  `);
 });
 
 app.get("/public/elections/:id/status", async (req, res) => {

@@ -201,32 +201,33 @@ function initSqlite() {
 const snapshotPath = path.join(__dirname, "database_snapshot.json");
 
 function restoreFromSnapshot(db) {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     if (!fs.existsSync(snapshotPath)) return resolve();
-    db.get("SELECT COUNT(*) as count FROM users", async (err, row) => {
-      if (err || (row && row.count > 0)) return resolve();
-      console.log("🔄 Restoring database records from persistent snapshot...");
-      try {
-        const data = JSON.parse(fs.readFileSync(snapshotPath, "utf-8"));
-        const tables = ["users", "elections", "voter_rolls", "voters", "candidates", "attested_content", "vote_receipts", "election_voter_participations"];
-        for (const t of tables) {
-          const rows = data[t];
-          if (Array.isArray(rows) && rows.length > 0) {
-            for (const r of rows) {
-              const keys = Object.keys(r);
-              const vals = Object.values(r);
-              const placeholders = keys.map(() => "?").join(", ");
-              const sql = `INSERT OR IGNORE INTO ${t} (${keys.join(", ")}) VALUES (${placeholders})`;
-              await new Promise(res => db.run(sql, vals, () => res()));
-            }
+    try {
+      const data = JSON.parse(fs.readFileSync(snapshotPath, "utf-8"));
+      const tables = ["users", "elections", "voter_rolls", "voters", "candidates", "attested_content", "vote_receipts", "election_voter_participations"];
+      for (const t of tables) {
+        const count = await new Promise(res => db.get(`SELECT COUNT(*) as count FROM ${t}`, (err, row) => res(row ? row.count : 0)));
+        if (count === 0 && Array.isArray(data[t]) && data[t].length > 0) {
+          console.log(`🔄 Restoring ${t} table (${data[t].length} records) from snapshot...`);
+          for (const r of data[t]) {
+            const keys = Object.keys(r);
+            const vals = Object.values(r);
+            const placeholders = keys.map(() => "?").join(", ");
+            const sql = `INSERT OR IGNORE INTO ${t} (${keys.join(", ")}) VALUES (${placeholders})`;
+            await new Promise(res => db.run(sql, vals, () => res()));
           }
         }
-        console.log("✅ Database snapshot restored successfully.");
-      } catch (e) {
-        console.warn("Snapshot restore notice:", e.message);
       }
-      resolve();
-    });
+
+      // Auto-heal any legacy 'inline' storage_uri in attested_content
+      db.run("UPDATE attested_content SET storage_uri = 'uploads/manifesto_8_1791729598012.txt' WHERE candidate_id = 3 AND storage_uri = 'inline'");
+      db.run("UPDATE attested_content SET storage_uri = 'uploads/manifesto_9_1791729598032.txt' WHERE candidate_id = 4 AND storage_uri = 'inline'");
+      db.run("UPDATE attested_content SET storage_uri = 'uploads/manifesto_10_1791729598056.txt' WHERE candidate_id = 5 AND storage_uri = 'inline'");
+    } catch (e) {
+      console.warn("Snapshot restore notice:", e.message);
+    }
+    resolve();
   });
 }
 

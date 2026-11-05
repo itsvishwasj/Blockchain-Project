@@ -42,5 +42,20 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+export function getManifestoUrl(uri, candidateId) {
+  const base = getApiBase().replace(/\/+$/, '');
+  if (!uri || uri === 'inline') {
+    if (candidateId) {
+      return `${base}/public/candidates/${candidateId}/manifesto`;
+    }
+    return null;
+  }
+  if (uri.startsWith('http://') || uri.startsWith('https://')) {
+    return uri;
+  }
+  const cleanUri = uri.replace(/^\/+/, '');
+  return `${base}/${cleanUri}`;
+}
+
 export default api;
 export { api, API_BASE };

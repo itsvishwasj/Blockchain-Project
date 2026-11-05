@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api, API_BASE } from '@/lib/api';
+import { api, API_BASE, getManifestoUrl } from '@/lib/api';
 import { evaluateElectionTally } from '@/lib/electionService';
 import {
   Settings2,
@@ -1076,9 +1076,9 @@ export function AdminTab({ toast }) {
                             </span>
                           </div>
                           <p className="text-xs text-slate-600">{cand.bio}</p>
-                          {cand.manifesto_uri && (
+                          {getManifestoUrl(cand.manifesto_uri, cand.id) && (
                             <a
-                              href={cand.manifesto_uri.startsWith('http') ? cand.manifesto_uri : `${API_BASE}/${cand.manifesto_uri}`}
+                              href={getManifestoUrl(cand.manifesto_uri, cand.id)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-xl transition-colors w-fit"

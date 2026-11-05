@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
+import { getManifestoUrl } from "@/lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:4000";
 const TOPICS = [
@@ -152,12 +153,12 @@ export default function ElectionPage() {
                     </div>
                   )}
 
-                  {c.manifesto_uri && (
+                  {getManifestoUrl(c.manifesto_uri, c.id) && (
                     <div className="mt-4 flex items-center gap-3 flex-wrap">
                       <a
-                        href={c.manifesto_uri.startsWith('http') ? c.manifesto_uri : `${API_BASE}/${c.manifesto_uri}`}
+                        href={getManifestoUrl(c.manifesto_uri, c.id)}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         className="text-cyan-400 text-sm hover:underline"
                       >
                         📄 View Manifesto
