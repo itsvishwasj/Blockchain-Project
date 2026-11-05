@@ -1,24 +1,31 @@
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 
-// Dedicated bot Google account for TriVote system notifications
-const DEFAULT_EMAIL_USER = "majorproject382027@gmail.com";
-const DEFAULT_EMAIL_PASS = "tirofssbqcvinspk";
+// Dedicated Google account for TriVote system notifications
+const DEFAULT_EMAIL_USER = "4vishwasj@gmail.com";
+const DEFAULT_EMAIL_PASS = "hqmxtxgrcnkwkqcs";
+
+let cachedTransporter = null;
 
 function getSmtpTransporter() {
+  if (cachedTransporter) return cachedTransporter;
+
   if (process.env.SMTP_HOST) {
-    return nodemailer.createTransport({
+    cachedTransporter = nodemailer.createTransport({
+      pool: true,
+      maxConnections: 3,
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT) || 587,
       secure: process.env.SMTP_SECURE === "true",
-      connectionTimeout: 5000,
-      greetingTimeout: 5000,
-      socketTimeout: 5500,
+      connectionTimeout: 20000,
+      greetingTimeout: 20000,
+      socketTimeout: 20000,
       auth: {
         user: (process.env.SMTP_USER || process.env.EMAIL_USER || DEFAULT_EMAIL_USER).trim(),
         pass: (process.env.SMTP_PASS || process.env.EMAIL_PASS || DEFAULT_EMAIL_PASS).replace(/\s+/g, "")
       }
     });
+    return cachedTransporter;
   }
 
   const rawUser = process.env.EMAIL_USER || DEFAULT_EMAIL_USER;
@@ -28,14 +35,16 @@ function getSmtpTransporter() {
   const pass = String(rawPass).replace(/\s+/g, "");
 
   if (user && pass) {
-    // Port 465 with 5s connection timeouts so it completes TLS or fails fast if ports are blocked
-    return nodemailer.createTransport({
+    cachedTransporter = nodemailer.createTransport({
+      pool: true,
+      maxConnections: 3,
+      maxMessages: 100,
       host: "smtp.gmail.com",
       port: 465,
       secure: true,
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 15000,
+      connectionTimeout: 25000,
+      greetingTimeout: 25000,
+      socketTimeout: 25000,
       auth: {
         user,
         pass
@@ -44,6 +53,7 @@ function getSmtpTransporter() {
         rejectUnauthorized: false
       }
     });
+    return cachedTransporter;
   }
   return null;
 }
@@ -226,7 +236,7 @@ async function sendEmail({ to, subject, html }) {
   };
 
   const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error("SMTP connection timed out after 5s (Render Free Tier blocks outbound SMTP ports 25, 465, 587; set EMAIL_WEBHOOK_URL, BREVO_API_KEY or RESEND_API_KEY for cloud delivery)")), 5000)
+    setTimeout(() => reject(new Error("SMTP connection timed out after 25s (Render Free Tier blocks outbound SMTP ports 25, 465, 587; set EMAIL_WEBHOOK_URL, BREVO_API_KEY or RESEND_API_KEY for cloud delivery)")), 25000)
   );
 
   await Promise.race([
