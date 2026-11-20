@@ -2,8 +2,9 @@ const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 // Dedicated Google account for TriVote system notifications
-const DEFAULT_EMAIL_USER = "4vishwasj@gmail.com";
-const DEFAULT_EMAIL_PASS = "hqmxtxgrcnkwkqcs";
+const DEFAULT_EMAIL_USER = "majorproject382027@gmail.com";
+const DEFAULT_EMAIL_PASS = "tirofssbqcvinspk";
+const DEFAULT_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxB2DsEsm7WxtyeTOGnyazWhobJm6eZRY5wf0zurfwa7a0L417cND_rAm2Vz1DquC0/exec";
 
 let cachedTransporter = null;
 
@@ -111,7 +112,7 @@ async function sendViaResend(toEmail, subject, htmlContent) {
 
 // Send via Google Apps Script Webhook (HTTPS Port 443 — sends directly from Google Cloud to ANY email, NO domain needed)
 async function sendViaWebhook(toEmail, subject, htmlContent) {
-  let webhookUrl = process.env.EMAIL_WEBHOOK_URL || process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
+  let webhookUrl = process.env.EMAIL_WEBHOOK_URL || process.env.GOOGLE_SCRIPT_WEBHOOK_URL || DEFAULT_WEBHOOK_URL;
   if (!webhookUrl) return { ok: false, error: "EMAIL_WEBHOOK_URL is not configured" };
   webhookUrl = String(webhookUrl).trim().replace(/^["']|["']$/g, '');
 
@@ -191,11 +192,12 @@ async function sendEmail({ to, subject, html }) {
   const rawUser = process.env.EMAIL_USER || DEFAULT_EMAIL_USER;
   const fromAddress = (process.env.EMAIL_FROM || rawUser || DEFAULT_EMAIL_USER).trim();
 
-  // 1. Google Apps Script Webhook (Sends to ANY email via Gmail on HTTPS)
-  if (process.env.EMAIL_WEBHOOK_URL || process.env.GOOGLE_SCRIPT_WEBHOOK_URL) {
+  // 1. Google Apps Script Webhook (Sends to ANY email via Gmail on HTTPS — works on Render Free Tier!)
+  const activeWebhook = process.env.EMAIL_WEBHOOK_URL || process.env.GOOGLE_SCRIPT_WEBHOOK_URL || DEFAULT_WEBHOOK_URL;
+  if (activeWebhook) {
     const webhookRes = await sendViaWebhook(to, subject, html);
     if (webhookRes.ok) {
-      console.log(`📧 Email sent to ${to} via HTTPS Google Webhook`);
+      console.log(`📧 Email sent to ${to} via HTTPS Google Webhook (${DEFAULT_EMAIL_USER})`);
       return { provider: "webhook", data: webhookRes.data };
     }
     console.warn(`Webhook failed (${webhookRes.error}), falling back to next provider...`);
