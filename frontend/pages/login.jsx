@@ -59,7 +59,7 @@ export default function Login() {
         router.push("/verify-otp?email=" + encodeURIComponent(errData.email));
         return;
       }
-      setError(errData?.error || "Login failed");
+      setError(errData?.error || (err.code === 'ECONNABORTED' ? 'Server is waking up. Please try logging in again.' : (err.message || "Login failed")));
     } finally {
       setLoading(false);
     }

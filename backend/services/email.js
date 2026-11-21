@@ -126,7 +126,7 @@ async function sendViaWebhook(toEmail, subject, htmlContent) {
         html: htmlContent
       }),
       redirect: "follow",
-      signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined
+      signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined
     });
 
     const bodyText = await res.text();
@@ -238,7 +238,7 @@ async function sendEmail({ to, subject, html }) {
   };
 
   const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error("SMTP connection timed out after 25s (Render Free Tier blocks outbound SMTP ports 25, 465, 587; set EMAIL_WEBHOOK_URL, BREVO_API_KEY or RESEND_API_KEY for cloud delivery)")), 25000)
+    setTimeout(() => reject(new Error("SMTP connection timed out after 6s (Render Free Tier blocks outbound SMTP ports 25, 465, 587; set EMAIL_WEBHOOK_URL, BREVO_API_KEY or RESEND_API_KEY for cloud delivery)")), 6000)
   );
 
   await Promise.race([

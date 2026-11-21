@@ -219,7 +219,7 @@ export function VoterTab({
       }
     } catch (err) {
       const errMsg = err.code === 'ECONNABORTED'
-        ? 'Server request timed out. Please try again or test on localhost.'
+        ? 'The cloud server is taking a moment to wake up. Please try again in a few seconds.'
         : (err.response?.data?.error || err.message || 'Failed to authenticate voter or send OTP.');
       setAuthError(errMsg);
       safeToast('error', 'Authentication Failed', errMsg);
